@@ -989,7 +989,7 @@ export default function LandingPage() {
                 <div className="inline-block px-3 py-1 rounded-full bg-[#EEF2FF] text-[#3B5BDB] text-xs font-semibold mb-4">
                   CaseReady Pro
                 </div>
-                <div className="text-5xl font-bold text-white mb-2">$49</div>
+                <div className="text-5xl font-bold text-white mb-2">$29</div>
                 <div className="text-gray-400 text-sm">
                   per month · billed monthly
                 </div>

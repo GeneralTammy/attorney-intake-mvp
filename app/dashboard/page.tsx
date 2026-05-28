@@ -168,7 +168,7 @@ function MobileSidebar({
       />
       <aside className="fixed top-0 left-0 h-full w-64 bg-white z-50 flex flex-col shadow-xl lg:hidden">
         <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
               <Briefcase size={16} className="text-white" />
             </div>
@@ -275,7 +275,7 @@ function DesktopSidebar({
   return (
     <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 flex-col hidden lg:flex">
       <div className="px-6 py-5 border-b border-gray-100">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
             <Briefcase size={16} className="text-white" />
           </div>

@@ -393,7 +393,7 @@ function DesktopSidebar({
   return (
     <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 flex-col hidden lg:flex">
       <div className="px-6 py-5 border-b border-gray-100">
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/dashboard" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
             <Briefcase size={16} className="text-white" />
           </div>
