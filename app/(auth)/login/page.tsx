@@ -10,9 +10,9 @@ import {
   Shield,
   Mail,
   Lock,
-  CheckCircle2,
   Eye,
   EyeOff,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -53,7 +53,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F7FB] flex">
-      {/* ── Left branding panel ── */}
+      {/* Left branding panel */}
       <div className="hidden lg:flex w-[460px] flex-shrink-0 bg-gray-900 flex-col justify-between p-14">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#3B5BDB] flex items-center justify-center">
@@ -66,18 +66,18 @@ export default function LoginPage() {
 
         <div>
           <h2 className="text-4xl font-bold text-white leading-tight mb-5">
-            Your client intakes are waiting
+            Welcome back to CaseReady
           </h2>
           <p className="text-gray-400 text-lg leading-relaxed mb-12">
-            Sign back in to check readiness scores, review missing documents,
-            and generate PDF reports.
+            Sign in to manage your client intakes, review readiness scores, and
+            generate professional reports.
           </p>
           <div className="space-y-5">
             {[
-              "Live readiness scores",
-              "Missing document alerts",
-              "One-click PDF export",
-              "Public intake links",
+              "Readiness score on every intake",
+              "Missing document detection",
+              "One-click PDF report export",
+              "Public intake links for clients",
             ].map((item) => (
               <div key={item} className="flex items-center gap-4">
                 <div className="w-6 h-6 rounded-full bg-[#3B5BDB]/25 flex items-center justify-center flex-shrink-0">
@@ -91,16 +91,16 @@ export default function LoginPage() {
 
         <div className="border-t border-gray-800 pt-8">
           <p className="text-base text-gray-400 italic leading-relaxed">
-            "Missing document detection means I'm never blindsided. The PDF
-            report stays in the case file permanently."
+            "The readiness score alone is worth it. I know which cases are ready
+            before I walk in."
           </p>
           <p className="text-sm text-gray-600 mt-3">
-            Tanya Perez — Immigration Attorney
+            Rachel Conley — Solo Personal Injury Attorney
           </p>
         </div>
       </div>
 
-      {/* ── Right form panel ── */}
+      {/* Right form panel */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 py-16">
         {/* Mobile logo */}
         <Link href="/" className="flex items-center gap-3 mb-10 lg:hidden">
@@ -116,10 +116,10 @@ export default function LoginPage() {
           {/* Heading */}
           <div className="mb-10">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-2">
-              Welcome back
+              Sign in
             </h1>
             <p className="text-base text-gray-500">
-              Sign in to your attorney account
+              Access your attorney dashboard
             </p>
           </div>
 
@@ -216,33 +216,26 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+          </div>
 
-            {/* Divider */}
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-100" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-4 bg-white text-sm text-gray-400">
-                  New to CaseReady?
-                </span>
-              </div>
-            </div>
-
-            {/* Sign up */}
-            <Link
-              href="/signup"
-              className="block w-full text-center py-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold text-base rounded-xl border border-gray-200 transition"
-            >
-              Create a free account
-            </Link>
+          {/* Sign up link */}
+          <div className="mt-6 text-center">
+            <p className="text-base text-gray-400">
+              Don't have an account?{" "}
+              <Link
+                href="/signup"
+                className="font-semibold text-[#3B5BDB] hover:underline"
+              >
+                Get started
+              </Link>
+            </p>
           </div>
 
           {/* Trust + back */}
-          <div className="mt-8 flex flex-col items-center gap-4">
+          <div className="mt-6 flex flex-col items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Shield size={15} />
-              <span>14-day free trial · No credit card required</span>
+              <span>Secure · Encrypted · Attorney-focused</span>
             </div>
             <Link
               href="/"

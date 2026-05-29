@@ -18,10 +18,10 @@ import {
 } from "lucide-react";
 
 const BENEFITS = [
-  "14-day free trial",
-  "No credit card required",
   "Cancel anytime",
   "All features included",
+  "Secure & encrypted",
+  "Attorney-focused platform",
 ];
 
 export default function SignupPage() {
@@ -82,7 +82,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F7FB] flex">
-      {/* ── Left branding panel ── */}
+      {/* Left branding panel */}
       <div className="hidden lg:flex w-[460px] flex-shrink-0 bg-gray-900 flex-col justify-between p-14">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#3B5BDB] flex items-center justify-center">
@@ -129,7 +129,7 @@ export default function SignupPage() {
         </div>
       </div>
 
-      {/* ── Right form panel ── */}
+      {/* Right form panel */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 py-16">
         {/* Mobile logo */}
         <Link href="/" className="flex items-center gap-3 mb-10 lg:hidden">
@@ -150,7 +150,7 @@ export default function SignupPage() {
             <p className="text-base text-gray-500">
               {confirmEmail
                 ? "We sent a confirmation link to your inbox"
-                : "Start your 14-day free trial — no card required"}
+                : "Get started with CaseReady"}
             </p>
           </div>
 
@@ -321,7 +321,7 @@ export default function SignupPage() {
                       </>
                     ) : (
                       <>
-                        Start Free Trial
+                        Create Account
                         <ArrowRight size={18} />
                       </>
                     )}

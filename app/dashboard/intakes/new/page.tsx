@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { addNotification } from "@/lib/notifications";
 import {
   ArrowLeft,
   Briefcase,
@@ -21,13 +22,14 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 
 const B = "#3B5BDB";
 const BH = "#2F4AC2";
 const BT = "#EEF2FF";
 
-// ─── Case Type Configurations (same as before) ─────────────
+// ─── Case Type Configurations ─────────────────────────────
 const caseTypeConfigs: Record<
   string,
   {
@@ -236,7 +238,7 @@ function ScoreRing({ score }: { score: number }) {
   const color = score >= 80 ? "#12A06E" : score >= 50 ? "#C97A0A" : "#C93B3B";
 
   return (
-    <div className="relative w-32 h-32 sm:w-36 sm:h-36 mx-auto">
+    <div className="relative w-32 h-32 mx-auto">
       <svg viewBox="0 0 108 108" className="w-full h-full -rotate-90">
         <circle
           cx="54"
@@ -260,13 +262,10 @@ function ScoreRing({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span
-          className="text-3xl sm:text-4xl font-bold leading-none"
-          style={{ color }}
-        >
+        <span className="text-3xl font-bold leading-none" style={{ color }}>
           {score}%
         </span>
-        <span className="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-wider mt-1">
+        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1">
           Ready
         </span>
       </div>
@@ -274,7 +273,7 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-// ─── Mobile Sidebar Component ──────────────────────────────
+// ─── Sidebar Components ──────────────────────────────────────
 function MobileSidebar({
   userName,
   onSignOut,
@@ -291,85 +290,79 @@ function MobileSidebar({
     { href: "/dashboard/intakes/new", label: "New Intake", icon: PlusCircle },
   ];
 
-  const handleLinkClick = () => {
-    onClose();
-  };
-
   if (!isOpen) return null;
 
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        className="fixed inset-0 bg-black/40 z-40 lg:hidden"
         onClick={onClose}
       />
-      <aside className="fixed top-0 left-0 h-full w-64 bg-white z-50 flex flex-col shadow-xl lg:hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2.5">
+      <aside className="fixed top-0 left-0 h-full w-72 bg-white z-50 flex flex-col shadow-xl lg:hidden">
+        <div className="px-5 py-5 border-b border-gray-100 flex justify-between items-center">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
-              <Briefcase size={16} className="text-white" />
+              <Briefcase size={15} className="text-white" />
             </div>
-            <span className="font-bold text-lg text-gray-900">
+            <span className="font-semibold text-base text-gray-900">
               Case<span className="text-[#3B5BDB]">Ready</span>
             </span>
           </Link>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 hover:text-gray-600"
           >
             <X size={20} />
           </button>
         </div>
-
-        <div className="px-5 py-4 border-b border-gray-100">
+        <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center">
-              <span className="text-[#3B5BDB] text-sm font-semibold">
+            <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center">
+              <span className="text-[#3B5BDB] text-sm font-medium">
                 {userName.charAt(0).toUpperCase()}
               </span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">{userName}</p>
+              <p className="text-sm font-medium text-gray-900">{userName}</p>
               <p className="text-xs text-gray-400">Solo Practitioner</p>
             </div>
           </div>
         </div>
-
-        <nav className="flex-1 px-3 py-5 space-y-1">
+        <nav className="flex-1 px-3 py-5 space-y-0.5">
+          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2">
+            Main
+          </div>
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              onClick={handleLinkClick}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                item.href === "/dashboard/intakes/new"
-                  ? "bg-[#EEF2FF] text-[#3B5BDB]"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
+              onClick={onClose}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
             >
-              <item.icon
-                size={18}
-                className={
-                  item.href === "/dashboard/intakes/new"
-                    ? "text-[#3B5BDB]"
-                    : "text-gray-400"
-                }
-              />
-              {item.label}
+              <item.icon size={16} className="text-gray-400" /> {item.label}
             </Link>
           ))}
+          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
+            Account
+          </div>
+          <Link
+            href="/dashboard/settings"
+            onClick={onClose}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+          >
+            <Settings size={16} className="text-gray-400" />
+            Settings
+          </Link>
         </nav>
-
         <div className="p-4 border-t border-gray-100">
           <button
             onClick={() => {
               onSignOut();
               onClose();
             }}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
+            className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
           >
-            <LogOut size={18} />
-            Sign out
+            <LogOut size={16} /> Sign out
           </button>
         </div>
       </aside>
@@ -377,7 +370,6 @@ function MobileSidebar({
   );
 }
 
-// ─── Desktop Sidebar ──────────────────────────────────────
 function DesktopSidebar({
   userName,
   onSignOut,
@@ -392,62 +384,71 @@ function DesktopSidebar({
 
   return (
     <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 flex-col hidden lg:flex">
-      <div className="px-6 py-5 border-b border-gray-100">
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
-            <Briefcase size={16} className="text-white" />
+      <div className="px-5 py-5 border-b border-gray-100">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
+            <Briefcase size={15} className="text-white" />
           </div>
-          <span className="font-bold text-lg text-gray-900 tracking-tight">
+          <span className="font-semibold text-base text-gray-900">
             Case<span className="text-[#3B5BDB]">Ready</span>
           </span>
         </Link>
       </div>
-
-      <div className="px-5 py-4 border-b border-gray-100">
+      <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center">
-            <span className="text-[#3B5BDB] text-sm font-semibold">
+          <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center">
+            <span className="text-[#3B5BDB] text-sm font-medium">
               {userName.charAt(0).toUpperCase()}
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">{userName}</p>
+            <p className="text-sm font-medium text-gray-900">{userName}</p>
             <p className="text-xs text-gray-400">Solo Practitioner</p>
           </div>
         </div>
       </div>
-
-      <nav className="flex-1 px-3 py-5 space-y-1">
+      <nav className="flex-1 px-3 py-5 space-y-0.5">
+        <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2">
+          Main
+        </div>
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
               item.href === "/dashboard/intakes/new"
-                ? "bg-[#EEF2FF] text-[#3B5BDB]"
+                ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium"
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}
           >
             <item.icon
-              size={18}
+              size={16}
               className={
                 item.href === "/dashboard/intakes/new"
                   ? "text-[#3B5BDB]"
                   : "text-gray-400"
               }
-            />
+            />{" "}
             {item.label}
           </Link>
         ))}
+        <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
+          Account
+        </div>
+        <Link
+          href="/dashboard/settings"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+        >
+          <Settings size={16} className="text-gray-400" />
+          Settings
+        </Link>
       </nav>
-
       <div className="p-4 border-t border-gray-100">
         <button
           onClick={onSignOut}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
         >
-          <LogOut size={18} />
-          Sign out
+          <LogOut size={16} /> Sign out
         </button>
       </div>
     </aside>
@@ -460,7 +461,6 @@ export default function NewIntakePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [userName, setUserName] = useState<string>("Attorney");
-  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const [showValidation, setShowValidation] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const supabase = createClient();
@@ -492,8 +492,6 @@ export default function NewIntakePage() {
   };
 
   const currentConfig = caseTypeConfigs[formData.case_type];
-  const requiredFields = currentConfig.required;
-
   const { score, completedRequired, totalRequired } = useMemo(
     () =>
       calcScore(
@@ -504,20 +502,16 @@ export default function NewIntakePage() {
       ),
     [formData],
   );
-
-  const missingRequired = requiredFields.filter(
+  const missingRequired = currentConfig.required.filter(
     (field) => !formData.case_data[field]?.trim(),
   );
-
   const isClientInfoValid =
     formData.client_first_name.trim() !== "" &&
     formData.client_last_name.trim() !== "";
-
   const isFormValid = isClientInfoValid && missingRequired.length === 0;
 
   const handleCaseTypeChange = (caseType: string) => {
     setFormData({ ...formData, case_type: caseType, case_data: {} });
-    setTouchedFields(new Set());
     setShowValidation(false);
   };
 
@@ -526,10 +520,6 @@ export default function NewIntakePage() {
       ...formData,
       case_data: { ...formData.case_data, [field]: value },
     });
-  };
-
-  const handleBlur = (field: string) => {
-    setTouchedFields((prev) => new Set(prev).add(field));
   };
 
   const getFieldError = (field: string): boolean => {
@@ -542,19 +532,15 @@ export default function NewIntakePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setShowValidation(true);
-
     if (!isFormValid) {
       setError("Please complete all required fields before submitting.");
       const firstError = document.querySelector(".error-field");
-      if (firstError) {
+      if (firstError)
         firstError.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
       return;
     }
-
     setLoading(true);
     setError("");
-
     const payload = {
       client_first_name: formData.client_first_name,
       client_last_name: formData.client_last_name,
@@ -563,38 +549,38 @@ export default function NewIntakePage() {
       case_type: formData.case_type,
       case_data: formData.case_data,
     };
-
     try {
       const response = await fetch("/api/intakes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         setError(errorData.error || "Failed to create intake");
         setLoading(false);
         return;
       }
-
       const intake = await response.json();
 
-      const reportResponse = await fetch(
-        `/api/intakes/${intake.id}/readiness`,
-        {
-          method: "POST",
-        },
-      );
+      // Add notification for new intake
+      addNotification({
+        message: `New intake created for ${intake.client_first_name} ${intake.client_last_name}`,
+        type: "info",
+        intakeId: intake.id,
+      });
 
-      if (!reportResponse.ok) {
-        router.push(`/dashboard/intakes/${intake.id}`);
-        return;
-      }
+      await fetch(`/api/intakes/${intake.id}/readiness`, { method: "POST" });
+
+      // Add notification for report ready
+      addNotification({
+        message: `Readiness report for ${intake.client_first_name} ${intake.client_last_name} is ready`,
+        type: "success",
+        intakeId: intake.id,
+      });
 
       router.push(`/dashboard/intakes/${intake.id}/readiness`);
     } catch (err) {
-      console.error("Submit error:", err);
       setError("Network error. Please try again.");
       setLoading(false);
     }
@@ -624,110 +610,86 @@ export default function NewIntakePage() {
       <DesktopSidebar userName={userName} onSignOut={handleSignOut} />
 
       <div className="lg:pl-64">
-        {/* Top Bar - Responsive */}
         <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
-          <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setMobileMenuOpen(true)}
-                  className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+                  className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
                 >
                   <Menu size={20} />
                 </button>
                 <div>
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+                  <h1 className="text-lg font-semibold text-gray-900">
                     New Client Intake
                   </h1>
-                  <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
-                    Collect client information and case details
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Create a new case file
                   </p>
                 </div>
               </div>
               <Link
                 href="/dashboard"
-                className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition group text-sm"
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition"
               >
-                <ArrowLeft
-                  size={16}
-                  className="group-hover:-translate-x-0.5 transition"
-                />
-                <span className="hidden sm:inline">Back to Dashboard</span>
+                <ArrowLeft size={14} /> Back to Dashboard
               </Link>
             </div>
-            <p className="text-xs text-gray-500 mt-2 sm:hidden">
-              Collect client information and case details
-            </p>
           </div>
         </header>
 
-        {/* Main Content - Responsive */}
-        <main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <main className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 lg:gap-8">
-            {/* LEFT: Form */}
-            <div className="flex-1 min-w-0">
-              {/* Error Alert */}
+            {/* Form */}
+            <div className="flex-1">
               {error && (
-                <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
                   <AlertCircle
                     size={16}
                     className="text-red-500 flex-shrink-0 mt-0.5"
                   />
                   <div>
-                    <p className="font-semibold text-red-800 text-xs sm:text-sm">
-                      Error creating intake
-                    </p>
-                    <p className="text-red-600 text-xs sm:text-sm">{error}</p>
+                    <p className="text-sm font-medium text-red-800">Error</p>
+                    <p className="text-xs text-red-600">{error}</p>
                   </div>
                 </div>
               )}
-
-              {/* Incomplete warning */}
               {showValidation && !isFormValid && (
-                <div className="mb-4 sm:mb-6 bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                   <AlertTriangle
                     size={16}
                     className="text-amber-500 flex-shrink-0 mt-0.5"
                   />
                   <div>
-                    <p className="font-semibold text-amber-800 text-xs sm:text-sm">
+                    <p className="text-sm font-medium text-amber-800">
                       Incomplete Form
                     </p>
-                    <p className="text-amber-700 text-xs sm:text-sm">
+                    <p className="text-xs text-amber-700">
                       Please complete all required fields before submitting.
                     </p>
                   </div>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-                {/* Client Information Section */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Client Info */}
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50/50">
+                  <div className="border-b border-gray-100 px-4 py-3 bg-gray-50/50">
                     <div className="flex items-center gap-2">
-                      <User size={16} className="text-[#3B5BDB]" />
-                      <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                      <User size={14} className="text-[#3B5BDB]" />
+                      <h2 className="text-sm font-semibold text-gray-900">
                         Client Information
                       </h2>
-                      <span className="ml-2 text-[10px] sm:text-xs text-red-500">
+                      <span className="text-[10px] text-red-500 ml-auto">
                         * Required
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Basic details about the client
-                    </p>
                   </div>
-                  <div className="p-4 sm:p-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                      {/* First Name */}
-                      <div
-                        className={
-                          showValidation && !formData.client_first_name
-                            ? "error-field"
-                            : ""
-                        }
-                      >
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                  <div className="p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
                           First Name <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -740,30 +702,16 @@ export default function NewIntakePage() {
                               client_first_name: e.target.value,
                             })
                           }
-                          onBlur={() => handleBlur("client_first_name")}
                           placeholder="John"
-                          className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white ${
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] ${
                             showValidation && !formData.client_first_name
                               ? "border-red-300 bg-red-50/50"
                               : "border-gray-200"
                           }`}
                         />
-                        {showValidation && !formData.client_first_name && (
-                          <p className="text-[10px] sm:text-xs text-red-500 mt-1">
-                            First name is required
-                          </p>
-                        )}
                       </div>
-
-                      {/* Last Name */}
-                      <div
-                        className={
-                          showValidation && !formData.client_last_name
-                            ? "error-field"
-                            : ""
-                        }
-                      >
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
                           Last Name <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -776,26 +724,17 @@ export default function NewIntakePage() {
                               client_last_name: e.target.value,
                             })
                           }
-                          onBlur={() => handleBlur("client_last_name")}
                           placeholder="Doe"
-                          className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white ${
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] ${
                             showValidation && !formData.client_last_name
                               ? "border-red-300 bg-red-50/50"
                               : "border-gray-200"
                           }`}
                         />
-                        {showValidation && !formData.client_last_name && (
-                          <p className="text-[10px] sm:text-xs text-red-500 mt-1">
-                            Last name is required
-                          </p>
-                        )}
                       </div>
-
-                      {/* Email */}
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
-                          <Mail size={14} className="inline mr-1" /> Email
-                          Address
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <Mail size={12} className="inline mr-1" /> Email
                         </label>
                         <input
                           type="email"
@@ -807,15 +746,12 @@ export default function NewIntakePage() {
                             })
                           }
                           placeholder="john@example.com"
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB]"
                         />
                       </div>
-
-                      {/* Phone */}
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
-                          <Phone size={14} className="inline mr-1" /> Phone
-                          Number
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <Phone size={12} className="inline mr-1" /> Phone
                         </label>
                         <input
                           type="tel"
@@ -827,69 +763,65 @@ export default function NewIntakePage() {
                             })
                           }
                           placeholder="(555) 555-5555"
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB]"
                         />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Case Details Section */}
+                {/* Case Details */}
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50/50">
+                  <div className="border-b border-gray-100 px-4 py-3 bg-gray-50/50">
                     <div className="flex items-center gap-2">
-                      <Briefcase size={16} className="text-[#3B5BDB]" />
-                      <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                      <Briefcase size={14} className="text-[#3B5BDB]" />
+                      <h2 className="text-sm font-semibold text-gray-900">
                         Case Details
                       </h2>
-                      <span className="ml-2 text-[10px] sm:text-xs text-red-500">
+                      <span className="text-[10px] text-red-500 ml-auto">
                         * Required
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Select case type and provide relevant information
-                    </p>
                   </div>
-
-                  <div className="p-4 sm:p-6">
-                    {/* Case Type Select */}
-                    <div className="mb-6 sm:mb-8">
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                  <div className="p-4">
+                    <div className="mb-5">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
                         Case Type <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <select
                           value={formData.case_type}
                           onChange={(e) => handleCaseTypeChange(e.target.value)}
-                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent appearance-none bg-white cursor-pointer"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg appearance-none bg-white"
                         >
-                          {Object.entries(caseTypeConfigs).map(
-                            ([value, config]) => (
-                              <option key={value} value={value}>
-                                {config.label}
-                              </option>
-                            ),
-                          )}
+                          <option value="personal_injury">
+                            Personal Injury
+                          </option>
+                          <option value="family">Family Law</option>
+                          <option value="criminal_defense">
+                            Criminal Defense
+                          </option>
+                          <option value="immigration">Immigration</option>
+                          <option value="estate_planning">
+                            Estate Planning
+                          </option>
                         </select>
                         <ChevronDown
-                          size={16}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                          size={14}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                         />
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                         {currentConfig.icon}
-                        <p className="text-xs text-gray-500">
-                          {currentConfig.description}
-                        </p>
-                      </div>
+                        {currentConfig.description}
+                      </p>
                     </div>
 
-                    {/* Required Fields */}
-                    <div className="mb-6 sm:mb-8">
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <div className="mb-5">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-1 h-5 sm:h-6 bg-red-500 rounded-full" />
-                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                          <div className="w-1 h-4 bg-red-500 rounded-full" />
+                          <h3 className="text-sm font-medium text-gray-900">
                             Required Information
                           </h3>
                         </div>
@@ -898,11 +830,11 @@ export default function NewIntakePage() {
                             currentConfig.required.filter((k) =>
                               formData.case_data[k]?.trim(),
                             ).length
-                          }{" "}
-                          / {currentConfig.required.length} complete
+                          }
+                          /{currentConfig.required.length} complete
                         </span>
                       </div>
-                      <div className="space-y-4 sm:space-y-5">
+                      <div className="space-y-4">
                         {currentConfig.required.map((field) => {
                           const isError = getFieldError(field);
                           const isFilled = !!formData.case_data[field]?.trim();
@@ -910,20 +842,17 @@ export default function NewIntakePage() {
                             currentConfig.fieldTypes[field] ?? "textarea";
                           const placeholder =
                             currentConfig.fieldPlaceholders[field] ?? "";
-
                           return (
                             <div
                               key={field}
                               className={isError ? "error-field" : ""}
                             >
-                              <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
-                                <span className="capitalize">
-                                  {formatFieldName(field)}
-                                </span>
+                              <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                                {formatFieldName(field)}{" "}
                                 <span className="text-red-500">*</span>
                                 {isFilled && !isError && (
                                   <CheckCircle2
-                                    size={14}
+                                    size={12}
                                     className="text-emerald-500"
                                   />
                                 )}
@@ -935,8 +864,7 @@ export default function NewIntakePage() {
                                   onChange={(e) =>
                                     handleFieldChange(field, e.target.value)
                                   }
-                                  onBlur={() => handleBlur(field)}
-                                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white ${
+                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] ${
                                     isError
                                       ? "border-red-300 bg-red-50/50"
                                       : "border-gray-200"
@@ -949,9 +877,8 @@ export default function NewIntakePage() {
                                   onChange={(e) =>
                                     handleFieldChange(field, e.target.value)
                                   }
-                                  onBlur={() => handleBlur(field)}
                                   placeholder={placeholder}
-                                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white ${
+                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] ${
                                     isError
                                       ? "border-red-300 bg-red-50/50"
                                       : "border-gray-200"
@@ -964,9 +891,8 @@ export default function NewIntakePage() {
                                   onChange={(e) =>
                                     handleFieldChange(field, e.target.value)
                                   }
-                                  onBlur={() => handleBlur(field)}
                                   placeholder={placeholder}
-                                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition resize-none bg-white ${
+                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] resize-none ${
                                     isError
                                       ? "border-red-300 bg-red-50/50"
                                       : "border-gray-200"
@@ -974,7 +900,7 @@ export default function NewIntakePage() {
                                 />
                               )}
                               {isError && (
-                                <p className="text-[10px] sm:text-xs text-red-500 mt-1">
+                                <p className="text-[10px] text-red-500 mt-1">
                                   {formatFieldName(field)} is required
                                 </p>
                               )}
@@ -984,19 +910,18 @@ export default function NewIntakePage() {
                       </div>
                     </div>
 
-                    {/* Optional Fields */}
                     {currentConfig.optional.length > 0 && (
                       <div>
-                        <div className="flex flex-wrap items-center gap-2 mb-4">
-                          <div className="w-1 h-5 sm:h-6 bg-gray-400 rounded-full" />
-                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-1 h-4 bg-gray-400 rounded-full" />
+                          <h3 className="text-sm font-medium text-gray-900">
                             Optional Information
                           </h3>
-                          <span className="text-[10px] sm:text-xs text-gray-400">
-                            (Helpful but not required)
+                          <span className="text-[10px] text-gray-400">
+                            Helpful but not required
                           </span>
                         </div>
-                        <div className="space-y-4 sm:space-y-5">
+                        <div className="space-y-4">
                           {currentConfig.optional.map((field) => {
                             const fieldType =
                               currentConfig.fieldTypes[field] ?? "textarea";
@@ -1005,7 +930,7 @@ export default function NewIntakePage() {
                               `Optional: ${formatFieldName(field).toLowerCase()}...`;
                             return (
                               <div key={field}>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
                                   {formatFieldName(field)}
                                 </label>
                                 {fieldType === "date" ? (
@@ -1015,7 +940,7 @@ export default function NewIntakePage() {
                                     onChange={(e) =>
                                       handleFieldChange(field, e.target.value)
                                     }
-                                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB]"
                                   />
                                 ) : fieldType === "text" ? (
                                   <input
@@ -1025,7 +950,7 @@ export default function NewIntakePage() {
                                       handleFieldChange(field, e.target.value)
                                     }
                                     placeholder={placeholder}
-                                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition bg-white"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB]"
                                   />
                                 ) : (
                                   <textarea
@@ -1035,7 +960,7 @@ export default function NewIntakePage() {
                                       handleFieldChange(field, e.target.value)
                                     }
                                     placeholder={placeholder}
-                                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent transition resize-none bg-white"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] resize-none"
                                   />
                                 )}
                               </div>
@@ -1047,28 +972,23 @@ export default function NewIntakePage() {
                   </div>
                 </div>
 
-                {/* Form Actions - Responsive */}
-                <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-4 pb-10">
+                <div className="flex justify-end gap-3 pb-8">
                   <Link
                     href="/dashboard"
-                    className="order-2 sm:order-1 px-4 sm:px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition text-center"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
                   >
                     Cancel
                   </Link>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="order-1 sm:order-2 px-4 sm:px-6 py-2.5 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white font-semibold rounded-xl transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="px-4 py-2 text-sm font-medium bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white rounded-lg transition shadow-sm flex items-center gap-2 disabled:opacity-50"
                   >
                     {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Creating...
-                      </>
+                      <>Creating...</>
                     ) : (
                       <>
-                        <Save size={18} />
-                        Create Intake
+                        <Save size={14} /> Create Intake
                       </>
                     )}
                   </button>
@@ -1076,95 +996,83 @@ export default function NewIntakePage() {
               </form>
             </div>
 
-            {/* RIGHT: Live Readiness Panel - Hidden on mobile, shows on tablet and desktop */}
-            <div className="hidden md:block lg:w-72 flex-shrink-0 sticky top-24">
+            {/* Readiness Panel */}
+            <div className="hidden lg:block w-72 flex-shrink-0 sticky top-24">
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-100 bg-gray-50/50">
-                  <h3 className="text-sm sm:text-base font-bold text-gray-900">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+                  <h3 className="text-sm font-semibold text-gray-900">
                     Readiness Score
                   </h3>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-400">
                     Updates as you fill the form
                   </p>
                 </div>
-                <div className="p-4 sm:p-5">
+                <div className="p-4">
                   <ScoreRing score={score} />
-
-                  <div className="mt-4 sm:mt-5">
-                    <div className="flex justify-between text-xs sm:text-sm mb-1.5">
-                      <span className="font-semibold text-gray-600">
+                  <div className="mt-4">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="font-medium text-gray-600">
                         Required fields
                       </span>
-                      <span className={`font-bold ${scoreTextColor}`}>
+                      <span className={`font-medium ${scoreTextColor}`}>
                         {completedRequired}/{totalRequired}
                       </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${scoreBarColor}`}
+                        className={`h-full rounded-full ${scoreBarColor}`}
                         style={{
                           width: `${(completedRequired / totalRequired) * 100}%`,
                         }}
                       />
                     </div>
                   </div>
-
-                  <div className="mt-4 space-y-2.5">
-                    <div className="flex items-center gap-2.5">
-                      {formData.client_first_name &&
-                      formData.client_last_name ? (
-                        <CheckCircle2
-                          size={14}
-                          className="text-emerald-500 flex-shrink-0"
-                        />
-                      ) : (
-                        <AlertCircle
-                          size={14}
-                          className="text-red-400 flex-shrink-0"
-                        />
-                      )}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2
+                        size={12}
+                        className={
+                          formData.client_first_name &&
+                          formData.client_last_name
+                            ? "text-emerald-500"
+                            : "text-gray-300"
+                        }
+                      />
                       <span
-                        className={`text-xs truncate ${
+                        className={`text-xs ${
                           formData.client_first_name &&
                           formData.client_last_name
                             ? "text-gray-400 line-through"
-                            : "text-gray-700 font-medium"
+                            : "text-gray-700"
                         }`}
                       >
                         Client name
                       </span>
                     </div>
-                    {currentConfig.required.map((field) => {
-                      const filled = !!formData.case_data[field]?.trim();
-                      return (
-                        <div key={field} className="flex items-center gap-2.5">
-                          {filled ? (
-                            <CheckCircle2
-                              size={14}
-                              className="text-emerald-500 flex-shrink-0"
-                            />
-                          ) : (
-                            <AlertCircle
-                              size={14}
-                              className="text-red-400 flex-shrink-0"
-                            />
-                          )}
-                          <span
-                            className={`text-xs truncate ${
-                              filled
-                                ? "text-gray-400 line-through"
-                                : "text-gray-700 font-medium"
-                            }`}
-                          >
-                            {formatFieldName(field)}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {currentConfig.required.map((field) => (
+                      <div key={field} className="flex items-center gap-2">
+                        {formData.case_data[field]?.trim() ? (
+                          <CheckCircle2
+                            size={12}
+                            className="text-emerald-500"
+                          />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border border-gray-300" />
+                        )}
+                        <span
+                          className={`text-xs ${
+                            formData.case_data[field]?.trim()
+                              ? "text-gray-400 line-through"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {formatFieldName(field)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-
                   <div
-                    className={`mt-4 sm:mt-5 px-3 sm:px-4 py-2 sm:py-3 rounded-xl text-center text-xs sm:text-sm font-bold ${
+                    className={`mt-4 px-3 py-2 rounded-lg text-center text-xs font-medium ${
                       score >= 80
                         ? "bg-emerald-50 text-emerald-700"
                         : score >= 50
