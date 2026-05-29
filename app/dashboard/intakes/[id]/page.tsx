@@ -12,6 +12,9 @@ import {
   AlertCircle,
   Download,
   Trash2,
+  Link2,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const B = "#3B5BDB";
@@ -47,6 +50,8 @@ export default function IntakeDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
 
   const intakeId = params.id as string;
 
@@ -121,7 +126,7 @@ export default function IntakeDetailPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `intake-${intakeId}.pdf`;
+        a.download = `intake-${intakeId}.html`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -153,6 +158,30 @@ export default function IntakeDetailPage() {
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    try {
+      // First, get or create share token
+      const tokenResponse = await fetch(`/api/intakes/${intakeId}/share`);
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to get share link");
+      }
+
+      const tokenData = await tokenResponse.json();
+      const shareUrl = `${window.location.origin}/intake/${tokenData.share_token}`;
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 3000);
+
+      // Also store the token for reference
+      setShareToken(tokenData.share_token);
+    } catch (err) {
+      console.error("Error getting share link:", err);
+      alert("Failed to generate share link. Please try again.");
     }
   };
 
@@ -218,6 +247,16 @@ export default function IntakeDetailPage() {
         </div>
       )}
 
+      {/* Share Link Success Toast */}
+      {shareCopied && (
+        <div className="fixed bottom-4 right-4 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center gap-2 shadow-lg z-50">
+          <Check size={16} className="text-emerald-500" />
+          <span className="text-sm text-emerald-700">
+            Share link copied to clipboard!
+          </span>
+        </div>
+      )}
+
       <Link
         href="/dashboard"
         className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 transition"
@@ -237,7 +276,14 @@ export default function IntakeDetailPage() {
               {new Date(intake.created_at).toLocaleDateString()}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleShareLink}
+              className="px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition flex items-center gap-2"
+            >
+              <Link2 size={16} />
+              {shareCopied ? "Copied!" : "Share Link"}
+            </button>
             <button
               onClick={generateReport}
               disabled={generating}
@@ -255,7 +301,6 @@ export default function IntakeDetailPage() {
         </div>
       </div>
 
-      {/* Rest of your detail page content remains the same */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">

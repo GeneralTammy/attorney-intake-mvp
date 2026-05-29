@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Briefcase,
   Menu,
@@ -19,6 +20,7 @@ import {
   FileText,
   LayoutDashboard,
   PlusCircle,
+  Link2,
 } from "lucide-react";
 import {
   getNotifications,
@@ -190,24 +192,47 @@ function StatCard({
 function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const unreadCount = getUnreadCount();
+  const [mounted, setMounted] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    setNotifications(getNotifications());
-    const handleStorageChange = () => setNotifications(getNotifications());
+    setMounted(true);
+    const notifs = getNotifications();
+    setNotifications(notifs);
+    setUnreadCount(notifs.filter((n) => !n.read).length);
+
+    const handleStorageChange = () => {
+      const updated = getNotifications();
+      setNotifications(updated);
+      setUnreadCount(updated.filter((n) => !n.read).length);
+    };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const handleMarkAsRead = (id: string) => {
     markAsRead(id);
-    setNotifications(getNotifications());
+    const updated = getNotifications();
+    setNotifications(updated);
+    setUnreadCount(updated.filter((n) => !n.read).length);
   };
 
   const handleMarkAllAsRead = () => {
     markAllAsRead();
-    setNotifications(getNotifications());
+    const updated = getNotifications();
+    setNotifications(updated);
+    setUnreadCount(updated.filter((n) => !n.read).length);
   };
+
+  if (!mounted) {
+    return (
+      <div className="relative">
+        <button className="relative w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center">
+          <Bell size={14} className="text-gray-500" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -293,7 +318,8 @@ function NotificationBell() {
   );
 }
 
-function Sidebar({
+// Desktop Sidebar (No Share Link)
+function DesktopSidebar({
   userName,
   onSignOut,
   currentPath,
@@ -308,7 +334,7 @@ function Sidebar({
   ];
 
   return (
-    <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 flex flex-col">
+    <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 flex-col hidden lg:flex">
       <div className="px-5 py-5 border-b border-gray-100">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
@@ -384,43 +410,63 @@ function Sidebar({
   );
 }
 
+// Mobile Sidebar (No Share Link)
 function MobileSidebar({
   userName,
   onSignOut,
   isOpen,
   onClose,
+  currentPath,
 }: {
   userName: string;
   onSignOut: () => void;
   isOpen: boolean;
   onClose: () => void;
+  currentPath: string;
 }) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/intakes/new", label: "New Intake", icon: PlusCircle },
   ];
 
+  const handleNavigation = (href: string) => {
+    onClose();
+    setTimeout(() => {
+      if (href === currentPath) {
+        window.location.reload();
+      } else {
+        window.location.href = href;
+      }
+    }, 50);
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
         onClick={onClose}
       />
       <aside className="fixed top-0 left-0 h-full w-72 bg-white z-50 flex flex-col shadow-xl lg:hidden">
         <div className="px-5 py-5 border-b border-gray-100 flex justify-between items-center">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
-              <Briefcase size={15} className="text-white" />
+          <div
+            onClick={() => handleNavigation("/dashboard")}
+            className="cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
+                <Briefcase size={15} className="text-white" />
+              </div>
+              <span className="font-semibold text-base text-gray-900">
+                Case<span className="text-[#3B5BDB]">Ready</span>
+              </span>
             </div>
-            <span className="font-semibold text-base text-gray-900">
-              Case<span className="text-[#3B5BDB]">Ready</span>
-            </span>
-          </Link>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 transition"
+            aria-label="Close menu"
           >
             <X size={20} />
           </button>
@@ -443,25 +489,37 @@ function MobileSidebar({
             Main
           </div>
           {navItems.map((item) => (
-            <Link
+            <div
               key={item.href}
-              href={item.href}
-              onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+              onClick={() => handleNavigation(item.href)}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all cursor-pointer ${currentPath === item.href ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
             >
-              <item.icon size={16} className="text-gray-400" /> {item.label}
-            </Link>
+              <item.icon
+                size={16}
+                className={
+                  currentPath === item.href ? "text-[#3B5BDB]" : "text-gray-400"
+                }
+              />{" "}
+              {item.label}
+            </div>
           ))}
           <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
             Account
           </div>
-          <Link
-            href="/dashboard/settings"
-            onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+          <div
+            onClick={() => handleNavigation("/dashboard/settings")}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all cursor-pointer ${currentPath === "/dashboard/settings" ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
           >
-            <Settings size={16} className="text-gray-400" /> Settings
-          </Link>
+            <Settings
+              size={16}
+              className={
+                currentPath === "/dashboard/settings"
+                  ? "text-[#3B5BDB]"
+                  : "text-gray-400"
+              }
+            />{" "}
+            Settings
+          </div>
         </nav>
         <div className="p-4 border-t border-gray-100">
           <button
@@ -480,6 +538,8 @@ function MobileSidebar({
 }
 
 export default function DashboardPage() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [intakes, setIntakes] = useState<Intake[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -489,6 +549,7 @@ export default function DashboardPage() {
     "all" | "ready_for_review" | "draft"
   >("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -525,6 +586,53 @@ export default function DashboardPage() {
     window.location.href = "/login";
   };
 
+  const handleGenerateShareLink = async () => {
+    setGeneratingLink(true);
+    setError(null);
+    try {
+      // Create an empty intake
+      const response = await fetch("/api/intakes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_first_name: "Client",
+          client_last_name: "Name",
+          client_email: null,
+          client_phone: null,
+          case_type: "personal_injury",
+          case_data: {},
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create intake");
+      }
+
+      const intake = await response.json();
+
+      // Get the share token
+      const shareResponse = await fetch(`/api/intakes/${intake.id}/share`);
+      const shareData = await shareResponse.json();
+
+      const shareUrl = `${window.location.origin}/intake/${shareData.share_token}`;
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+
+      alert(
+        `Share link created and copied to clipboard!\n\n${shareUrl}\n\nSend this link to your client. They can fill out their case information without logging in.`,
+      );
+
+      // Refresh the dashboard to show the new intake
+      fetchIntakes();
+    } catch (err) {
+      console.error("Error generating share link:", err);
+      alert("Failed to generate share link. Please try again.");
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
   const total = intakes.length;
   const ready = intakes.filter((i) => i.status === "ready_for_review").length;
   const inProgress = intakes.filter(
@@ -555,11 +663,12 @@ export default function DashboardPage() {
         onSignOut={handleSignOut}
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
+        currentPath={pathname}
       />
-      <Sidebar
+      <DesktopSidebar
         userName={userName}
         onSignOut={handleSignOut}
-        currentPath="/dashboard"
+        currentPath={pathname}
       />
 
       <div className="lg:pl-64">
@@ -596,6 +705,15 @@ export default function DashboardPage() {
                     className="w-64 pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] focus:border-[#3B5BDB]"
                   />
                 </div>
+                {/* Functional Share Link Button */}
+                <button
+                  onClick={handleGenerateShareLink}
+                  disabled={generatingLink}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                >
+                  <Link2 size={14} />
+                  {generatingLink ? "Creating..." : "Share Link"}
+                </button>
                 <NotificationBell />
                 <Link
                   href="/dashboard/intakes/new"
@@ -711,7 +829,6 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* CASES TABLE - EACH ROW LINKS TO INTAKE DETAIL PAGE */}
             {!loading &&
               !error &&
               filtered.map((intake, idx) => {
@@ -730,7 +847,6 @@ export default function DashboardPage() {
                     <div
                       className={`${idx < filtered.length - 1 ? "border-b border-gray-50" : ""}`}
                     >
-                      {/* Mobile Card View */}
                       <div className="p-4 lg:hidden">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
@@ -758,7 +874,6 @@ export default function DashboardPage() {
                           </p>
                         </div>
                       </div>
-                      {/* Desktop Table Row */}
                       <div className="hidden lg:grid lg:grid-cols-[1.8fr_1.2fr_1.2fr_100px_100px_40px] gap-4 px-5 py-3.5 items-center">
                         <div className="flex items-center gap-3">
                           <div

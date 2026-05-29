@@ -11,17 +11,22 @@ import {
 } from "@/lib/notifications";
 import Link from "next/link";
 
-export default function NotificationBell() {
+function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const unreadCount = getUnreadCount();
+  const [mounted, setMounted] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    setNotifications(getNotifications());
+    setMounted(true);
+    const notifs = getNotifications();
+    setNotifications(notifs);
+    setUnreadCount(notifs.filter((n) => !n.read).length);
 
-    // Listen for storage events (notifications from other tabs)
     const handleStorageChange = () => {
-      setNotifications(getNotifications());
+      const updated = getNotifications();
+      setNotifications(updated);
+      setUnreadCount(updated.filter((n) => !n.read).length);
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
@@ -29,13 +34,28 @@ export default function NotificationBell() {
 
   const handleMarkAsRead = (id: string) => {
     markAsRead(id);
-    setNotifications(getNotifications());
+    const updated = getNotifications();
+    setNotifications(updated);
+    setUnreadCount(updated.filter((n) => !n.read).length);
   };
 
   const handleMarkAllAsRead = () => {
     markAllAsRead();
-    setNotifications(getNotifications());
+    const updated = getNotifications();
+    setNotifications(updated);
+    setUnreadCount(updated.filter((n) => !n.read).length);
   };
+
+  // Don't render the badge on the server to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="relative">
+        <button className="relative w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center">
+          <Bell size={14} className="text-gray-500" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -50,7 +70,6 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-
       {isOpen && (
         <>
           <div
@@ -82,21 +101,11 @@ export default function NotificationBell() {
                   <div
                     key={notif.id}
                     onClick={() => handleMarkAsRead(notif.id)}
-                    className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${
-                      !notif.read ? "bg-blue-50/30" : ""
-                    }`}
+                    className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${!notif.read ? "bg-blue-50/30" : ""}`}
                   >
                     <div className="flex items-start gap-2">
                       <div
-                        className={`w-2 h-2 rounded-full mt-1.5 ${
-                          notif.type === "ready"
-                            ? "bg-emerald-500"
-                            : notif.type === "missing"
-                              ? "bg-amber-500"
-                              : notif.type === "success"
-                                ? "bg-blue-500"
-                                : "bg-gray-400"
-                        }`}
+                        className={`w-2 h-2 rounded-full mt-1.5 ${notif.type === "ready" ? "bg-emerald-500" : notif.type === "missing" ? "bg-amber-500" : notif.type === "success" ? "bg-blue-500" : "bg-gray-400"}`}
                       />
                       <div className="flex-1">
                         <p
