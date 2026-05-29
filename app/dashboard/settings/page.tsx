@@ -23,11 +23,7 @@ import {
 } from "lucide-react";
 
 const B = "#3B5BDB";
-const BT = "#EEF2FF";
 
-// ─────────────────────────────────────────────────────────────
-// Sidebar Component
-// ─────────────────────────────────────────────────────────────
 function Sidebar({
   userName,
   onSignOut,
@@ -124,17 +120,13 @@ function Sidebar({
           onClick={onSignOut}
           className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
         >
-          <LogOut size={16} />
-          Sign out
+          <LogOut size={16} /> Sign out
         </button>
       </div>
     </aside>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Mobile Sidebar
-// ─────────────────────────────────────────────────────────────
 function MobileSidebar({
   userName,
   onSignOut,
@@ -176,7 +168,6 @@ function MobileSidebar({
             <X size={20} />
           </button>
         </div>
-
         <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center">
@@ -190,7 +181,6 @@ function MobileSidebar({
             </div>
           </div>
         </div>
-
         <nav className="flex-1 px-3 py-5 space-y-0.5">
           <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2">
             Main
@@ -202,8 +192,7 @@ function MobileSidebar({
               onClick={onClose}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
             >
-              <item.icon size={16} className="text-gray-400" />
-              {item.label}
+              <item.icon size={16} className="text-gray-400" /> {item.label}
             </Link>
           ))}
           <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
@@ -214,11 +203,9 @@ function MobileSidebar({
             onClick={onClose}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
           >
-            <Settings size={16} className="text-gray-400" />
-            Settings
+            <Settings size={16} className="text-gray-400" /> Settings
           </Link>
         </nav>
-
         <div className="p-4 border-t border-gray-100">
           <button
             onClick={() => {
@@ -227,8 +214,7 @@ function MobileSidebar({
             }}
             className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
           >
-            <LogOut size={16} />
-            Sign out
+            <LogOut size={16} /> Sign out
           </button>
         </div>
       </aside>
@@ -236,9 +222,6 @@ function MobileSidebar({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Settings Page Component
-// ─────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
@@ -366,7 +349,6 @@ export default function SettingsPage() {
       />
 
       <div className="lg:pl-64">
-        {/* Header */}
         <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
           <div className="px-5 lg:px-8 py-3">
             <div className="flex items-center justify-between">
@@ -390,10 +372,8 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Main Content */}
         <main className="px-5 lg:px-8 py-6">
           <div className="max-w-3xl mx-auto">
-            {/* Success Message */}
             {success && (
               <div className="mb-6 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
                 <CheckCircle2 size={16} className="text-emerald-500" />
@@ -401,7 +381,6 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Error Message */}
             {error && (
               <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2">
                 <AlertCircle size={16} className="text-red-500" />
@@ -532,7 +511,7 @@ export default function SettingsPage() {
               </form>
             </div>
 
-            {/* Notifications Section - In-app only */}
+            {/* Notifications Section */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                 <div className="flex items-center gap-2">

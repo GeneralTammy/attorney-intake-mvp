@@ -22,11 +22,9 @@ import {
 } from "lucide-react";
 import {
   getNotifications,
-  saveNotifications,
   markAsRead,
   markAllAsRead,
   getUnreadCount,
-  addNotification,
   Notification,
 } from "@/lib/notifications";
 
@@ -189,7 +187,6 @@ function StatCard({
   );
 }
 
-// Notification Bell Component
 function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -197,9 +194,7 @@ function NotificationBell() {
 
   useEffect(() => {
     setNotifications(getNotifications());
-    const handleStorageChange = () => {
-      setNotifications(getNotifications());
-    };
+    const handleStorageChange = () => setNotifications(getNotifications());
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
@@ -227,7 +222,6 @@ function NotificationBell() {
           </span>
         )}
       </button>
-
       {isOpen && (
         <>
           <div
@@ -263,15 +257,7 @@ function NotificationBell() {
                   >
                     <div className="flex items-start gap-2">
                       <div
-                        className={`w-2 h-2 rounded-full mt-1.5 ${
-                          notif.type === "ready"
-                            ? "bg-emerald-500"
-                            : notif.type === "missing"
-                              ? "bg-amber-500"
-                              : notif.type === "success"
-                                ? "bg-blue-500"
-                                : "bg-gray-400"
-                        }`}
+                        className={`w-2 h-2 rounded-full mt-1.5 ${notif.type === "ready" ? "bg-emerald-500" : notif.type === "missing" ? "bg-amber-500" : notif.type === "success" ? "bg-blue-500" : "bg-gray-400"}`}
                       />
                       <div className="flex-1">
                         <p
@@ -307,7 +293,6 @@ function NotificationBell() {
   );
 }
 
-// Sidebar Component
 function Sidebar({
   userName,
   onSignOut,
@@ -334,7 +319,6 @@ function Sidebar({
           </span>
         </Link>
       </div>
-
       <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center">
@@ -350,7 +334,6 @@ function Sidebar({
           </div>
         </div>
       </div>
-
       <nav className="flex-1 px-3 py-5 space-y-0.5">
         <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2">
           Main
@@ -361,31 +344,22 @@ function Sidebar({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                isActive
-                  ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
             >
               <item.icon
                 size={16}
                 className={isActive ? "text-[#3B5BDB]" : "text-gray-400"}
-              />
+              />{" "}
               {item.label}
             </Link>
           );
         })}
-
         <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
           Account
         </div>
         <Link
           href="/dashboard/settings"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-            currentPath === "/dashboard/settings"
-              ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium"
-              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-          }`}
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${currentPath === "/dashboard/settings" ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
         >
           <Settings
             size={16}
@@ -394,11 +368,10 @@ function Sidebar({
                 ? "text-[#3B5BDB]"
                 : "text-gray-400"
             }
-          />
+          />{" "}
           Settings
         </Link>
       </nav>
-
       <div className="p-4 border-t border-gray-100">
         <button
           onClick={onSignOut}
@@ -738,6 +711,7 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* CASES TABLE - EACH ROW LINKS TO INTAKE DETAIL PAGE */}
             {!loading &&
               !error &&
               filtered.map((intake, idx) => {
@@ -751,62 +725,69 @@ export default function DashboardPage() {
                   <Link
                     key={intake.id}
                     href={`/dashboard/intakes/${intake.id}`}
-                    className={`block hover:bg-gray-50 transition-colors ${idx < filtered.length - 1 ? "border-b border-gray-50" : ""}`}
+                    className="block hover:bg-gray-50 transition-colors"
                   >
-                    <div className="p-4 lg:hidden">
-                      <div className="flex items-start justify-between mb-3">
+                    <div
+                      className={`${idx < filtered.length - 1 ? "border-b border-gray-50" : ""}`}
+                    >
+                      {/* Mobile Card View */}
+                      <div className="p-4 lg:hidden">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-9 h-9 rounded-full ${bg} ${text} text-sm font-medium flex items-center justify-center`}
+                            >
+                              {initials || "?"}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {intake.client_first_name}{" "}
+                                {intake.client_last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatCaseType(intake.case_type)}
+                              </p>
+                            </div>
+                          </div>
+                          <StatusBadge status={intake.status} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <ReadinessIndicator score={score} />
+                          <p className="text-xs text-gray-400">
+                            {formatDate(intake.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Desktop Table Row */}
+                      <div className="hidden lg:grid lg:grid-cols-[1.8fr_1.2fr_1.2fr_100px_100px_40px] gap-4 px-5 py-3.5 items-center">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-9 h-9 rounded-full ${bg} ${text} text-sm font-medium flex items-center justify-center`}
+                            className={`w-8 h-8 rounded-full ${bg} ${text} text-xs font-medium flex items-center justify-center flex-shrink-0`}
                           >
                             {initials || "?"}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                               {intake.client_first_name}{" "}
                               {intake.client_last_name}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {formatCaseType(intake.case_type)}
-                            </p>
+                            {intake.client_email && (
+                              <p className="text-xs text-gray-400 truncate">
+                                {intake.client_email}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <StatusBadge status={intake.status} />
-                      </div>
-                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-600 truncate">
+                          {formatCaseType(intake.case_type)}
+                        </p>
                         <ReadinessIndicator score={score} />
-                        <p className="text-xs text-gray-400">
+                        <StatusBadge status={intake.status} />
+                        <p className="text-xs text-gray-500">
                           {formatDate(intake.created_at)}
                         </p>
+                        <ChevronRight size={14} className="text-gray-300" />
                       </div>
-                    </div>
-                    <div className="hidden lg:grid lg:grid-cols-[1.8fr_1.2fr_1.2fr_100px_100px_40px] gap-4 px-5 py-3.5 items-center">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-8 h-8 rounded-full ${bg} ${text} text-xs font-medium flex items-center justify-center flex-shrink-0`}
-                        >
-                          {initials || "?"}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {intake.client_first_name} {intake.client_last_name}
-                          </p>
-                          {intake.client_email && (
-                            <p className="text-xs text-gray-400 truncate">
-                              {intake.client_email}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 truncate">
-                        {formatCaseType(intake.case_type)}
-                      </p>
-                      <ReadinessIndicator score={score} />
-                      <StatusBadge status={intake.status} />
-                      <p className="text-xs text-gray-500">
-                        {formatDate(intake.created_at)}
-                      </p>
-                      <ChevronRight size={14} className="text-gray-300" />
                     </div>
                   </Link>
                 );
