@@ -5,13 +5,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Briefcase,
   FileText,
-  Download,
+  Upload,
   CheckCircle2,
   AlertCircle,
+  Download,
+  Trash2,
 } from "lucide-react";
 
 const B = "#3B5BDB";
+const BH = "#2F4AC2";
 
 interface Intake {
   id: string;
@@ -23,6 +27,14 @@ interface Intake {
   case_data: Record<string, any>;
   status: string;
   created_at: string;
+  documents?: Document[];
+}
+
+interface Document {
+  id: string;
+  file_name: string;
+  file_path: string;
+  uploaded_at: string;
 }
 
 export default function IntakeDetailPage() {
@@ -33,6 +45,8 @@ export default function IntakeDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const intakeId = params.id as string;
 
@@ -45,32 +59,43 @@ export default function IntakeDetailPage() {
   const fetchIntake = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/intakes/${intakeId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setIntake(data);
+      setError(null);
 
-        // Check for existing report
-        const reportRes = await fetch(`/api/intakes/${intakeId}/readiness`);
-        if (reportRes.ok) {
-          const reportData = await reportRes.json();
-          if (reportData && reportData.id) {
-            setReport(reportData);
-          }
+      const response = await fetch(`/api/intakes/${intakeId}`);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError("Intake not found");
+        } else if (response.status === 401) {
+          setError("Please log in to view this intake");
+          router.push("/login");
+        } else {
+          setError("Failed to load intake");
         }
-      } else {
-        setError("Intake not found");
+        return;
+      }
+
+      const data = await response.json();
+      setIntake(data);
+
+      const reportResponse = await fetch(`/api/intakes/${intakeId}/readiness`);
+      if (reportResponse.ok) {
+        const reportData = await reportResponse.json();
+        if (reportData && reportData.id) {
+          setReport(reportData);
+        }
       }
     } catch (err) {
-      setError("Failed to load intake");
+      console.error("Error fetching intake:", err);
+      setError("Network error");
     } finally {
       setLoading(false);
     }
   };
 
   const generateReport = async () => {
-    setGenerating(true);
     try {
+      setGenerating(true);
       const response = await fetch(`/api/intakes/${intakeId}/readiness`, {
         method: "POST",
       });
@@ -81,6 +106,7 @@ export default function IntakeDetailPage() {
         alert("Failed to generate report");
       }
     } catch (err) {
+      console.error("Error generating report:", err);
       alert("Error generating report");
     } finally {
       setGenerating(false);
@@ -95,17 +121,38 @@ export default function IntakeDetailPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `case-readiness-report-${intake?.client_first_name}-${intake?.client_last_name}.html`;
+        a.download = `intake-${intakeId}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       } else {
-        alert("Failed to generate report");
+        alert("Failed to generate PDF");
       }
     } catch (err) {
       console.error("Error downloading PDF:", err);
-      alert("Error downloading report");
+      alert("Error downloading PDF");
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/intakes/${intakeId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        router.push("/dashboard");
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete intake");
+      }
+    } catch (err) {
+      console.error("Error deleting intake:", err);
+      alert("Error deleting intake");
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -138,13 +185,47 @@ export default function IntakeDetailPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Delete Intake
+            </h3>
+            <p className="text-gray-500 mb-6">
+              Are you sure you want to delete the intake for{" "}
+              <strong>
+                {intake.client_first_name} {intake.client_last_name}
+              </strong>
+              ? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"
+        className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 transition"
       >
         <ArrowLeft size={16} /> Back to Dashboard
       </Link>
 
+      {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
@@ -156,18 +237,29 @@ export default function IntakeDetailPage() {
               {new Date(intake.created_at).toLocaleDateString()}
             </p>
           </div>
-          <button
-            onClick={generateReport}
-            disabled={generating}
-            className="px-5 py-2.5 bg-[#3B5BDB] text-white font-semibold rounded-xl hover:bg-[#2F4AC2] transition shadow-md disabled:opacity-50"
-          >
-            {generating ? "Generating..." : "Generate Report"}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={generateReport}
+              disabled={generating}
+              className="px-5 py-2.5 bg-[#3B5BDB] text-white font-semibold rounded-xl hover:bg-[#2F4AC2] transition shadow-md disabled:opacity-50"
+            >
+              {generating ? "Generating..." : "Generate Report"}
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="px-5 py-2.5 border border-red-300 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition"
+            >
+              <Trash2 size={16} className="inline mr-1" /> Delete
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Rest of your detail page content remains the same */}
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Client Information */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Client Information
@@ -200,6 +292,7 @@ export default function IntakeDetailPage() {
             </div>
           </div>
 
+          {/* Case Data */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Case Details
@@ -223,6 +316,7 @@ export default function IntakeDetailPage() {
           </div>
         </div>
 
+        {/* Right Column */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -255,9 +349,9 @@ export default function IntakeDetailPage() {
 
                 <button
                   onClick={handleDownloadPDF}
-                  className="w-full mt-3 px-4 py-2 bg-[#3B5BDB] text-white font-semibold rounded-lg hover:bg-[#2F4AC2] transition flex items-center justify-center gap-2"
+                  className="w-full mt-3 px-4 py-2 bg-[#3B5BDB] text-white font-semibold rounded-lg hover:bg-[#2F4AC2] transition"
                 >
-                  <Download size={16} /> Download Report
+                  <Download size={16} className="inline mr-1" /> Download PDF
                 </button>
               </div>
             ) : (
@@ -269,7 +363,7 @@ export default function IntakeDetailPage() {
                   disabled={generating}
                   className="px-4 py-2 bg-[#3B5BDB] text-white rounded-lg hover:bg-[#2F4AC2] transition"
                 >
-                  {generating ? "Generating..." : "Generate Report"}
+                  Generate Report
                 </button>
               </div>
             )}
