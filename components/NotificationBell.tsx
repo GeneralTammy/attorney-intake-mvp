@@ -1,24 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Bell } from "lucide-react";
 import {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  getUnreadCount,
   Notification,
 } from "@/lib/notifications";
-import Link from "next/link";
 
-function NotificationBell() {
+export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isClient, setIsClient] = useState(false);
 
+  // This ensures the component only renders fully on the client
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
     const notifs = getNotifications();
     setNotifications(notifs);
     setUnreadCount(notifs.filter((n) => !n.read).length);
@@ -46,8 +46,8 @@ function NotificationBell() {
     setUnreadCount(updated.filter((n) => !n.read).length);
   };
 
-  // Don't render the badge on the server to avoid hydration mismatch
-  if (!mounted) {
+  // During SSR and before client hydration, render without the badge
+  if (!isClient) {
     return (
       <div className="relative">
         <button className="relative w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center">
@@ -101,15 +101,29 @@ function NotificationBell() {
                   <div
                     key={notif.id}
                     onClick={() => handleMarkAsRead(notif.id)}
-                    className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${!notif.read ? "bg-blue-50/30" : ""}`}
+                    className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${
+                      !notif.read ? "bg-blue-50/30" : ""
+                    }`}
                   >
                     <div className="flex items-start gap-2">
                       <div
-                        className={`w-2 h-2 rounded-full mt-1.5 ${notif.type === "ready" ? "bg-emerald-500" : notif.type === "missing" ? "bg-amber-500" : notif.type === "success" ? "bg-blue-500" : "bg-gray-400"}`}
+                        className={`w-2 h-2 rounded-full mt-1.5 ${
+                          notif.type === "ready"
+                            ? "bg-emerald-500"
+                            : notif.type === "missing"
+                              ? "bg-amber-500"
+                              : notif.type === "success"
+                                ? "bg-blue-500"
+                                : "bg-gray-400"
+                        }`}
                       />
                       <div className="flex-1">
                         <p
-                          className={`text-sm ${!notif.read ? "font-medium text-gray-900" : "text-gray-700"}`}
+                          className={`text-sm ${
+                            !notif.read
+                              ? "font-medium text-gray-900"
+                              : "text-gray-700"
+                          }`}
                         >
                           {notif.message}
                         </p>

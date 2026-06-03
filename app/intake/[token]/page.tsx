@@ -11,8 +11,6 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
-  FileText,
-  Save,
   ArrowRight,
 } from "lucide-react";
 
@@ -182,7 +180,7 @@ function formatFieldName(field: string): string {
     .join(" ");
 }
 
-// Calculate readiness score - includes client info fields
+// Calculate readiness score
 function calculateReadinessScore(
   clientInfo: {
     first_name: string;
@@ -193,22 +191,18 @@ function calculateReadinessScore(
   formData: Record<string, any>,
   requiredFields: string[],
 ): { score: number; completedRequired: number; totalRequired: number } {
-  // Count client info completed (first and last name are required)
   let clientCompleted = 0;
   if (clientInfo.first_name && clientInfo.first_name.trim() !== "")
     clientCompleted++;
   if (clientInfo.last_name && clientInfo.last_name.trim() !== "")
     clientCompleted++;
 
-  // Count required case fields completed
   const caseCompleted = requiredFields.filter(
     (field) => formData[field] && formData[field].trim() !== "",
   ).length;
 
-  // Total required: 2 (first + last name) + required case fields
   const totalRequired = 2 + requiredFields.length;
   const completedRequired = clientCompleted + caseCompleted;
-
   const score =
     totalRequired > 0
       ? Math.round((completedRequired / totalRequired) * 100)
@@ -278,11 +272,14 @@ export default function PublicIntakePage() {
   });
 
   useEffect(() => {
-    fetchIntake();
+    if (token) {
+      fetchIntake();
+    }
   }, [token]);
 
   const fetchIntake = async () => {
     try {
+      setLoading(true);
       const response = await fetch(`/api/public/intake/${token}`);
       if (response.ok) {
         const data = await response.json();
@@ -335,29 +332,6 @@ export default function PublicIntakePage() {
     }
   };
 
-  // Calculate progress - updates in real-time
-  const { score, completedRequired, totalRequired } = calculateReadinessScore(
-    clientInfo,
-    formData,
-    intake?.case_type ? caseTypeConfigs[intake.case_type]?.required || [] : [],
-  );
-
-  const currentConfig = intake?.case_type
-    ? caseTypeConfigs[intake.case_type]
-    : caseTypeConfigs.personal_injury;
-  const scoreBarColor =
-    score >= 80
-      ? "bg-emerald-500"
-      : score >= 50
-        ? "bg-amber-400"
-        : "bg-red-400";
-  const scoreTextColor =
-    score >= 80
-      ? "text-emerald-600"
-      : score >= 50
-        ? "text-amber-600"
-        : "text-red-500";
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -370,16 +344,18 @@ export default function PublicIntakePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
         <div className="max-w-md text-center">
-          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Link Invalid
+          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={40} className="text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+            Intake Link Invalid
           </h1>
-          <p className="text-gray-500 mb-6">
-            {error || "This intake link is no longer available."}
+          <p className="text-gray-500 mb-2">
+            {error || "This intake link is no longer valid or has expired."}
           </p>
-          <Link href="/" className="text-[#3B5BDB] hover:underline">
-            Return to Home
-          </Link>
+          <p className="text-sm text-gray-400">
+            Please contact your attorney to request a new link.
+          </p>
         </div>
       </div>
     );
@@ -408,6 +384,26 @@ export default function PublicIntakePage() {
     );
   }
 
+  const currentConfig = caseTypeConfigs[intake.case_type];
+  const { score, completedRequired, totalRequired } = calculateReadinessScore(
+    clientInfo,
+    formData,
+    currentConfig.required,
+  );
+
+  const scoreBarColor =
+    score >= 80
+      ? "bg-emerald-500"
+      : score >= 50
+        ? "bg-amber-400"
+        : "bg-red-400";
+  const scoreTextColor =
+    score >= 80
+      ? "text-emerald-600"
+      : score >= 50
+        ? "text-amber-600"
+        : "text-red-500";
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-6 py-4">
@@ -425,6 +421,7 @@ export default function PublicIntakePage() {
 
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex flex-col lg:flex-row gap-8">
+          {/* Form */}
           <div className="flex-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="border-b border-gray-100 px-6 py-5 bg-gray-50/50">
@@ -432,7 +429,8 @@ export default function PublicIntakePage() {
                   Client Intake Form
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Please provide the following information for your case.
+                  Please provide the following information for your{" "}
+                  {currentConfig.label} case.
                 </p>
               </div>
 
@@ -532,6 +530,7 @@ export default function PublicIntakePage() {
                   </div>
                 </div>
 
+                {/* Case Information Section */}
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Briefcase size={16} className="text-[#3B5BDB]" />
@@ -545,202 +544,109 @@ export default function PublicIntakePage() {
 
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Case Type <span className="text-red-500">*</span>
+                      Case Type
                     </label>
-                    <div className="relative">
-                      <select
-                        value={intake.case_type}
-                        onChange={(e) => {
-                          setIntake({ ...intake, case_type: e.target.value });
-                          setFormData({});
-                        }}
-                        className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent appearance-none bg-white"
-                      >
-                        <option value="personal_injury">Personal Injury</option>
-                        <option value="family">Family Law</option>
-                        <option value="criminal_defense">
-                          Criminal Defense
-                        </option>
-                        <option value="immigration">Immigration</option>
-                        <option value="estate_planning">Estate Planning</option>
-                      </select>
-                      <ChevronDown
-                        size={16}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={currentConfig.label}
+                      disabled
+                      className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                    />
                     <p className="text-xs text-gray-400 mt-1">
                       {currentConfig.description}
                     </p>
                   </div>
 
-                  <div className="mb-6">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-1 h-5 bg-red-500 rounded-full" />
                       <h3 className="font-semibold text-gray-900">
                         Required Information
                       </h3>
                     </div>
-                    <div className="space-y-4">
-                      {currentConfig.required.map((field) => {
-                        const fieldType =
-                          currentConfig.fieldTypes[field] ?? "textarea";
-                        const placeholder =
-                          currentConfig.fieldPlaceholders[field] ?? "";
-                        const isFilled = !!formData[field]?.trim();
-                        return (
-                          <div key={field}>
-                            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1 capitalize">
-                              {formatFieldName(field)}{" "}
-                              <span className="text-red-500">*</span>
-                              {isFilled && (
-                                <CheckCircle2
-                                  size={14}
-                                  className="text-emerald-500"
-                                />
-                              )}
-                            </label>
-                            {fieldType === "date" ? (
-                              <input
-                                type="date"
-                                required
-                                value={formData[field] || ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    [field]: e.target.value,
-                                  })
-                                }
-                                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                              />
-                            ) : fieldType === "text" ? (
-                              <input
-                                type="text"
-                                required
-                                value={formData[field] || ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    [field]: e.target.value,
-                                  })
-                                }
-                                placeholder={placeholder}
-                                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                              />
-                            ) : (
-                              <textarea
-                                rows={3}
-                                required
-                                value={formData[field] || ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    [field]: e.target.value,
-                                  })
-                                }
-                                placeholder={placeholder}
-                                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent resize-none"
+                    {currentConfig.required.map((field) => {
+                      const fieldType =
+                        currentConfig.fieldTypes[field] ?? "textarea";
+                      const placeholder =
+                        currentConfig.fieldPlaceholders[field] ?? "";
+                      const isFilled = !!formData[field]?.trim();
+                      return (
+                        <div key={field}>
+                          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1 capitalize">
+                            {formatFieldName(field)}{" "}
+                            <span className="text-red-500">*</span>
+                            {isFilled && (
+                              <CheckCircle2
+                                size={14}
+                                className="text-emerald-500"
                               />
                             )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                          </label>
+                          {fieldType === "date" ? (
+                            <input
+                              type="date"
+                              required
+                              value={formData[field] || ""}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  [field]: e.target.value,
+                                })
+                              }
+                              className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
+                            />
+                          ) : fieldType === "text" ? (
+                            <input
+                              type="text"
+                              required
+                              value={formData[field] || ""}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  [field]: e.target.value,
+                                })
+                              }
+                              placeholder={placeholder}
+                              className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
+                            />
+                          ) : (
+                            <textarea
+                              rows={3}
+                              required
+                              value={formData[field] || ""}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  [field]: e.target.value,
+                                })
+                              }
+                              placeholder={placeholder}
+                              className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent resize-none"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
 
-                  {currentConfig.optional.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1 h-5 bg-gray-400 rounded-full" />
-                        <h3 className="font-semibold text-gray-900">
-                          Optional Information
-                        </h3>
-                        <span className="text-xs text-gray-400">
-                          (Helpful but not required)
-                        </span>
-                      </div>
-                      <div className="space-y-4">
-                        {currentConfig.optional.map((field) => {
-                          const fieldType =
-                            currentConfig.fieldTypes[field] ?? "textarea";
-                          const placeholder =
-                            currentConfig.fieldPlaceholders[field] ??
-                            `Optional: ${formatFieldName(field).toLowerCase()}...`;
-                          return (
-                            <div key={field}>
-                              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                                {formatFieldName(field)}
-                              </label>
-                              {fieldType === "date" ? (
-                                <input
-                                  type="date"
-                                  value={formData[field] || ""}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      [field]: e.target.value,
-                                    })
-                                  }
-                                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                                />
-                              ) : fieldType === "text" ? (
-                                <input
-                                  type="text"
-                                  value={formData[field] || ""}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      [field]: e.target.value,
-                                    })
-                                  }
-                                  placeholder={placeholder}
-                                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                                />
-                              ) : (
-                                <textarea
-                                  rows={2}
-                                  value={formData[field] || ""}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      [field]: e.target.value,
-                                    })
-                                  }
-                                  placeholder={placeholder}
-                                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent resize-none"
-                                />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white font-semibold rounded-lg transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      Submit Information
+                      <ArrowRight size={16} />
+                    </>
                   )}
-                </div>
-
-                <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-3 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white font-semibold rounded-lg transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {submitting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        Submit Information
-                        <ArrowRight size={16} />
-                      </>
-                    )}
-                  </button>
-                  <p className="text-xs text-center text-gray-400 mt-4">
-                    Your information is secure and will only be used for this
-                    case.
-                  </p>
-                </div>
+                </button>
               </form>
             </div>
           </div>
@@ -779,7 +685,6 @@ export default function PublicIntakePage() {
                 </div>
 
                 <div className="mt-4 space-y-2.5">
-                  {/* Client name fields */}
                   <div className="flex items-center gap-2.5">
                     {clientInfo.first_name && clientInfo.last_name ? (
                       <CheckCircle2
@@ -793,8 +698,6 @@ export default function PublicIntakePage() {
                       Your Full Name
                     </span>
                   </div>
-
-                  {/* Required case fields */}
                   {currentConfig.required.map((field) => {
                     const filled = !!formData[field]?.trim();
                     return (
