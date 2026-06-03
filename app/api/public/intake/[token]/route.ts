@@ -7,6 +7,7 @@ export async function GET(
 ) {
   try {
     const { token } = await params;
+
     const supabase = await createClient();
 
     const { data: intake, error } = await supabase
@@ -54,7 +55,6 @@ export async function PUT(
 
     const supabase = await createClient();
 
-    // Update the intake with client info AND case data
     const updateData: any = {
       case_data: case_data || {},
       updated_at: new Date().toISOString(),
