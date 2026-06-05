@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
+// IMPORTANT: This API is PUBLIC - no authentication required
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
@@ -8,8 +9,12 @@ export async function GET(
   try {
     const { token } = await params;
 
+    console.log("Public API called for token:", token);
+
+    // Create Supabase client WITHOUT checking auth
     const supabase = await createClient();
 
+    // Query the intake by share_token
     const { data: intake, error } = await supabase
       .from("intakes")
       .select("*")
@@ -17,9 +22,13 @@ export async function GET(
       .single();
 
     if (error || !intake) {
+      console.error("Intake not found:", error);
       return NextResponse.json({ error: "Intake not found" }, { status: 404 });
     }
 
+    console.log("Found intake:", intake.id);
+
+    // Return public data (no sensitive info)
     return NextResponse.json({
       id: intake.id,
       client_first_name: intake.client_first_name,
@@ -30,7 +39,7 @@ export async function GET(
       case_data: intake.case_data || {},
     });
   } catch (error) {
-    console.error("GET public intake error:", error);
+    console.error("Public intake error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
@@ -53,6 +62,8 @@ export async function PUT(
       case_data,
     } = body;
 
+    console.log("Public update for token:", token);
+
     const supabase = await createClient();
 
     const updateData: any = {
@@ -73,12 +84,14 @@ export async function PUT(
       .single();
 
     if (error) {
+      console.error("Update error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    console.log("Updated intake:", intake.id);
     return NextResponse.json({ success: true, intake });
   } catch (error) {
-    console.error("PUT public intake error:", error);
+    console.error("PUT error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

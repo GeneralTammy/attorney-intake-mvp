@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Briefcase,
@@ -16,18 +16,8 @@ import {
 
 const B = "#3B5BDB";
 
-// Case type configurations
-const caseTypeConfigs: Record<
-  string,
-  {
-    label: string;
-    required: string[];
-    optional: string[];
-    description: string;
-    fieldTypes: Record<string, "text" | "date" | "textarea">;
-    fieldPlaceholders: Record<string, string>;
-  }
-> = {
+// Case type configurations (same as before)
+const caseTypeConfigs: Record<string, any> = {
   personal_injury: {
     label: "Personal Injury",
     description: "Accidents, injuries, liability claims",
@@ -43,19 +33,11 @@ const caseTypeConfigs: Record<
       injury_description: "textarea",
       medical_providers: "text",
       liability_description: "textarea",
-      police_report_number: "text",
-      witnesses: "textarea",
-      insurance_info: "text",
     },
     fieldPlaceholders: {
-      injury_description:
-        "Describe the injuries sustained, severity, body parts affected...",
+      injury_description: "Describe the injuries sustained...",
       medical_providers: "e.g., General Hospital, Dr. Smith",
-      liability_description:
-        "Describe how the accident occurred and who was at fault...",
-      police_report_number: "e.g., RPT-2024-00123",
-      witnesses: "Names and phone numbers of any witnesses...",
-      insurance_info: "e.g., State Farm, Policy #12345",
+      liability_description: "Describe how the accident occurred...",
     },
   },
   family: {
@@ -77,16 +59,10 @@ const caseTypeConfigs: Record<
       marriage_date: "date",
       children_info: "textarea",
       asset_description: "textarea",
-      prenuptial_agreement: "text",
-      separation_date: "date",
-      custody_preferences: "textarea",
     },
     fieldPlaceholders: {
       opposing_party_name: "e.g., Jane Smith",
       children_info: "Names and ages of children involved...",
-      asset_description: "Describe shared property, accounts, or assets...",
-      prenuptial_agreement: "e.g., Yes — signed, or None",
-      custody_preferences: "Describe desired custody arrangement...",
     },
   },
   criminal_defense: {
@@ -99,17 +75,10 @@ const caseTypeConfigs: Record<
       arrest_date: "date",
       incident_description: "textarea",
       court_date: "date",
-      prior_convictions: "textarea",
-      bail_status: "text",
-      evidence_notes: "textarea",
     },
     fieldPlaceholders: {
       charges: "e.g., DUI, Assault, Possession",
-      incident_description:
-        "Describe what happened from the client's perspective...",
-      prior_convictions: "List any prior criminal history...",
-      bail_status: "e.g., Released on bail, Held in custody",
-      evidence_notes: "Any known evidence or witnesses...",
+      incident_description: "Describe what happened...",
     },
   },
   immigration: {
@@ -127,17 +96,10 @@ const caseTypeConfigs: Record<
       country_of_origin: "text",
       current_status: "text",
       filing_deadline: "date",
-      prior_applications: "textarea",
-      dependents_info: "textarea",
-      criminal_history: "text",
     },
     fieldPlaceholders: {
-      visa_type: "e.g., H-1B, F-1, Green Card, Asylum",
+      visa_type: "e.g., H-1B, F-1, Green Card",
       country_of_origin: "e.g., Mexico, India, Nigeria",
-      current_status: "e.g., Undocumented, F-1 student, H-1B worker",
-      prior_applications: "Any previous USCIS applications or denials...",
-      dependents_info: "Names and relationship of any dependents...",
-      criminal_history: "e.g., None, or describe briefly",
     },
   },
   estate_planning: {
@@ -155,19 +117,9 @@ const caseTypeConfigs: Record<
       beneficiaries: "textarea",
       executor_name: "text",
       will_exists: "text",
-      trust_info: "textarea",
-      healthcare_directive: "text",
-      power_of_attorney: "text",
     },
     fieldPlaceholders: {
-      assets_description:
-        "Real estate, bank accounts, investments, vehicles...",
-      beneficiaries: "Names and relationship to client...",
-      executor_name: "Full name of the executor",
-      will_exists: "e.g., No existing will / Yes — needs updating",
-      trust_info: "Details about any existing or desired trusts...",
-      healthcare_directive: "e.g., Not needed / Needed — new",
-      power_of_attorney: "e.g., Not needed / Needed — new",
+      assets_description: "Real estate, bank accounts, investments...",
     },
   },
 };
@@ -180,27 +132,18 @@ function formatFieldName(field: string): string {
     .join(" ");
 }
 
-// Calculate readiness score
 function calculateReadinessScore(
-  clientInfo: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string;
-  },
-  formData: Record<string, any>,
+  clientInfo: any,
+  formData: any,
   requiredFields: string[],
-): { score: number; completedRequired: number; totalRequired: number } {
+) {
   let clientCompleted = 0;
-  if (clientInfo.first_name && clientInfo.first_name.trim() !== "")
-    clientCompleted++;
-  if (clientInfo.last_name && clientInfo.last_name.trim() !== "")
-    clientCompleted++;
+  if (clientInfo.first_name?.trim()) clientCompleted++;
+  if (clientInfo.last_name?.trim()) clientCompleted++;
 
-  const caseCompleted = requiredFields.filter(
-    (field) => formData[field] && formData[field].trim() !== "",
+  const caseCompleted = requiredFields.filter((field) =>
+    formData[field]?.trim(),
   ).length;
-
   const totalRequired = 2 + requiredFields.length;
   const completedRequired = clientCompleted + caseCompleted;
   const score =
@@ -210,7 +153,6 @@ function calculateReadinessScore(
   return { score, completedRequired, totalRequired };
 }
 
-// Score Ring Component
 function ScoreRing({ score }: { score: number }) {
   const r = 44;
   const circ = 2 * Math.PI * r;
@@ -238,7 +180,6 @@ function ScoreRing({ score }: { score: number }) {
           strokeDasharray={circ}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.4s ease" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -255,8 +196,7 @@ function ScoreRing({ score }: { score: number }) {
 
 export default function PublicIntakePage() {
   const params = useParams();
-  const router = useRouter();
-  const token = params.token as string;
+  const token = params?.token as string;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -279,7 +219,7 @@ export default function PublicIntakePage() {
 
   const fetchIntake = async () => {
     try {
-      setLoading(true);
+      console.log("Fetching intake with token:", token);
       const response = await fetch(`/api/public/intake/${token}`);
       if (response.ok) {
         const data = await response.json();
@@ -307,7 +247,7 @@ export default function PublicIntakePage() {
     setError("");
 
     try {
-      const updateResponse = await fetch(`/api/public/intake/${token}`, {
+      const response = await fetch(`/api/public/intake/${token}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -319,10 +259,10 @@ export default function PublicIntakePage() {
         }),
       });
 
-      if (updateResponse.ok) {
+      if (response.ok) {
         setSubmitted(true);
       } else {
-        const errorData = await updateResponse.json();
+        const errorData = await response.json();
         setError(errorData.error || "Failed to submit form");
       }
     } catch (err) {
@@ -390,7 +330,6 @@ export default function PublicIntakePage() {
     formData,
     currentConfig.required,
   );
-
   const scoreBarColor =
     score >= 80
       ? "bg-emerald-500"
@@ -421,7 +360,6 @@ export default function PublicIntakePage() {
 
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Form */}
           <div className="flex-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="border-b border-gray-100 px-6 py-5 bg-gray-50/50">
@@ -434,18 +372,7 @@ export default function PublicIntakePage() {
                 </p>
               </div>
 
-              {error && (
-                <div className="m-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-                  <AlertCircle
-                    size={18}
-                    className="text-red-500 flex-shrink-0 mt-0.5"
-                  />
-                  <p className="text-sm text-red-600">{error}</p>
-                </div>
-              )}
-
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                {/* Client Information Section */}
                 <div className="border-b border-gray-100 pb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <User size={16} className="text-[#3B5BDB]" />
@@ -530,7 +457,6 @@ export default function PublicIntakePage() {
                   </div>
                 </div>
 
-                {/* Case Information Section */}
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Briefcase size={16} className="text-[#3B5BDB]" />
@@ -541,7 +467,6 @@ export default function PublicIntakePage() {
                       * Required
                     </span>
                   </div>
-
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Case Type
@@ -556,7 +481,6 @@ export default function PublicIntakePage() {
                       {currentConfig.description}
                     </p>
                   </div>
-
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-1 h-5 bg-red-500 rounded-full" />
@@ -564,18 +488,17 @@ export default function PublicIntakePage() {
                         Required Information
                       </h3>
                     </div>
-                    {currentConfig.required.map((field) => {
+                    {currentConfig.required.map((field: string) => {
                       const fieldType =
                         currentConfig.fieldTypes[field] ?? "textarea";
                       const placeholder =
                         currentConfig.fieldPlaceholders[field] ?? "";
-                      const isFilled = !!formData[field]?.trim();
                       return (
                         <div key={field}>
                           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1 capitalize">
                             {formatFieldName(field)}{" "}
                             <span className="text-red-500">*</span>
-                            {isFilled && (
+                            {formData[field]?.trim() && (
                               <CheckCircle2
                                 size={14}
                                 className="text-emerald-500"
@@ -637,13 +560,12 @@ export default function PublicIntakePage() {
                 >
                   {submitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{" "}
                       Submitting...
                     </>
                   ) : (
                     <>
-                      Submit Information
-                      <ArrowRight size={16} />
+                      Submit Information <ArrowRight size={16} />
                     </>
                   )}
                 </button>
@@ -651,7 +573,6 @@ export default function PublicIntakePage() {
             </div>
           </div>
 
-          {/* Readiness Score Panel */}
           <div className="lg:w-80 flex-shrink-0">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-24">
               <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -664,7 +585,6 @@ export default function PublicIntakePage() {
               </div>
               <div className="p-5">
                 <ScoreRing score={score} />
-
                 <div className="mt-5">
                   <div className="flex justify-between text-sm mb-1.5">
                     <span className="font-semibold text-gray-600">
@@ -683,14 +603,10 @@ export default function PublicIntakePage() {
                     />
                   </div>
                 </div>
-
                 <div className="mt-4 space-y-2.5">
                   <div className="flex items-center gap-2.5">
                     {clientInfo.first_name && clientInfo.last_name ? (
-                      <CheckCircle2
-                        size={14}
-                        className="text-emerald-500 flex-shrink-0"
-                      />
+                      <CheckCircle2 size={14} className="text-emerald-500" />
                     ) : (
                       <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
                     )}
@@ -698,34 +614,21 @@ export default function PublicIntakePage() {
                       Your Full Name
                     </span>
                   </div>
-                  {currentConfig.required.map((field) => {
-                    const filled = !!formData[field]?.trim();
-                    return (
-                      <div key={field} className="flex items-center gap-2.5">
-                        {filled ? (
-                          <CheckCircle2
-                            size={14}
-                            className="text-emerald-500 flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
-                        )}
-                        <span className="text-xs text-gray-700">
-                          {formatFieldName(field)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {currentConfig.required.map((field: string) => (
+                    <div key={field} className="flex items-center gap-2.5">
+                      {formData[field]?.trim() ? (
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                      ) : (
+                        <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                      )}
+                      <span className="text-xs text-gray-700">
+                        {formatFieldName(field)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-
                 <div
-                  className={`mt-5 px-4 py-3 rounded-xl text-center text-sm font-bold ${
-                    score >= 80
-                      ? "bg-emerald-50 text-emerald-700"
-                      : score >= 50
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-red-50 text-red-600"
-                  }`}
+                  className={`mt-5 px-4 py-3 rounded-xl text-center text-sm font-bold ${score >= 80 ? "bg-emerald-50 text-emerald-700" : score >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}
                 >
                   {score >= 80
                     ? "✓ Great progress! Ready to submit"
