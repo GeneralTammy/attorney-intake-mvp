@@ -219,10 +219,14 @@ export default function PublicIntakePage() {
 
   const fetchIntake = async () => {
     try {
-      console.log("Fetching intake with token:", token);
+      console.log("Fetching token:", token);
       const response = await fetch(`/api/public/intake/${token}`);
+      console.log("Response status:", response.status);
+
+      const data = await response.json();
+      console.log("Response data:", data);
+
       if (response.ok) {
-        const data = await response.json();
         setIntake(data);
         setFormData(data.case_data || {});
         setClientInfo({
@@ -232,9 +236,10 @@ export default function PublicIntakePage() {
           phone: data.client_phone || "",
         });
       } else {
-        setError("This intake link is invalid or has expired.");
+        setError(data.error || "This intake link is invalid or has expired.");
       }
     } catch (err) {
+      console.error("Fetch error:", err);
       setError("Failed to load intake form.");
     } finally {
       setLoading(false);
