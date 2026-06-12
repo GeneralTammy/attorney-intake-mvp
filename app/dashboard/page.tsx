@@ -3,15 +3,13 @@
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Briefcase,
   Menu,
   X,
   Search,
-  Bell,
   Settings,
-  User,
   LogOut,
   ChevronRight,
   CheckCircle2,
@@ -25,17 +23,6 @@ import {
 
 import NotificationBell from "@/components/NotificationBell";
 
-import {
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
-  getUnreadCount,
-  Notification,
-} from "@/lib/notifications";
-
-const B = "#3B5BDB";
-const BT = "#EEF2FF";
-
 interface Intake {
   id: string;
   client_first_name: string;
@@ -44,6 +31,7 @@ interface Intake {
   client_email?: string;
   status: string;
   created_at: string;
+  readiness_score?: number | null;
   case_data?: Record<string, any>;
 }
 
@@ -73,27 +61,9 @@ function formatDate(iso: string) {
   });
 }
 
-function calculateReadinessScore(intake: Intake): number {
-  const caseData = intake.case_data || {};
-  const requiredFields = [
-    "incident_date",
-    "injury_description",
-    "medical_providers",
-    "liability_description",
-  ];
-  const filledFields = requiredFields.filter(
-    (field) => caseData[field] && caseData[field] !== "",
-  );
-  if (intake.status === "ready_for_review") return 85;
-  if (intake.status === "consultation_booked") return 100;
-  if (filledFields.length === 0) return 25;
-  return Math.min(
-    95,
-    Math.max(
-      30,
-      Math.floor((filledFields.length / requiredFields.length) * 90) + 10,
-    ),
-  );
+// Readiness score comes from the database — never invent it client-side.
+function getReadinessScore(intake: Intake): number {
+  return intake.readiness_score ?? 0;
 }
 
 function getReadinessColor(score: number): string {
@@ -117,7 +87,7 @@ function getAvatarColors(name: string): { bg: string; text: string } {
     { bg: "bg-pink-50", text: "text-pink-700" },
     { bg: "bg-indigo-50", text: "text-indigo-700" },
   ];
-  const idx = name.charCodeAt(0) % colors.length;
+  const idx = (name?.charCodeAt(0) ?? 0) % colors.length;
   return colors[idx];
 }
 
@@ -192,7 +162,6 @@ function StatCard({
   );
 }
 
-// Desktop Sidebar (No Share Link)
 function DesktopSidebar({
   userName,
   onSignOut,
@@ -230,7 +199,6 @@ function DesktopSidebar({
             <p className="text-sm font-medium text-gray-900 truncate">
               {userName}
             </p>
-            <p className="text-xs text-gray-400">Solo Practitioner</p>
           </div>
         </div>
       </div>
@@ -284,7 +252,6 @@ function DesktopSidebar({
   );
 }
 
-// Mobile Sidebar (No Share Link)
 function MobileSidebar({
   userName,
   onSignOut,
@@ -354,7 +321,6 @@ function MobileSidebar({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">{userName}</p>
-              <p className="text-xs text-gray-400">Solo Practitioner</p>
             </div>
           </div>
         </div>
@@ -413,7 +379,6 @@ function MobileSidebar({
 
 export default function DashboardPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const [intakes, setIntakes] = useState<Intake[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -437,6 +402,7 @@ export default function DashboardPage() {
       }
     });
     fetchIntakes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchIntakes = useCallback(async () => {
@@ -479,29 +445,46 @@ export default function DashboardPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create intake");
+        throw new Error(`Failed to create intake (HTTP ${response.status})`);
       }
 
       const intake = await response.json();
 
+      if (!intake?.id) {
+        throw new Error("Intake created but no id returned by /api/intakes");
+      }
+
       // Get the share token
       const shareResponse = await fetch(`/api/intakes/${intake.id}/share`);
+
+      if (!shareResponse.ok) {
+        throw new Error(
+          `Failed to get share token (HTTP ${shareResponse.status})`,
+        );
+      }
+
       const shareData = await shareResponse.json();
+
+      if (!shareData?.share_token) {
+        throw new Error("Share endpoint returned no share_token");
+      }
 
       const shareUrl = `${window.location.origin}/intake/${shareData.share_token}`;
 
-      // Copy to clipboard
       await navigator.clipboard.writeText(shareUrl);
 
       alert(
         `Share link created and copied to clipboard!\n\n${shareUrl}\n\nSend this link to your client. They can fill out their case information without logging in.`,
       );
 
-      // Refresh the dashboard to show the new intake
       fetchIntakes();
     } catch (err) {
       console.error("Error generating share link:", err);
-      alert("Failed to generate share link. Please try again.");
+      alert(
+        err instanceof Error
+          ? `Failed to generate share link: ${err.message}`
+          : "Failed to generate share link. Please try again.",
+      );
     } finally {
       setGeneratingLink(false);
     }
@@ -515,7 +498,7 @@ export default function DashboardPage() {
   const avgScore =
     intakes.length > 0
       ? Math.round(
-          intakes.reduce((acc, i) => acc + calculateReadinessScore(i), 0) /
+          intakes.reduce((acc, i) => acc + getReadinessScore(i), 0) /
             intakes.length,
         )
       : 0;
@@ -579,7 +562,6 @@ export default function DashboardPage() {
                     className="w-64 pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] focus:border-[#3B5BDB]"
                   />
                 </div>
-                {/* Functional Share Link Button */}
                 <button
                   onClick={handleGenerateShareLink}
                   disabled={generatingLink}
@@ -706,7 +688,7 @@ export default function DashboardPage() {
             {!loading &&
               !error &&
               filtered.map((intake, idx) => {
-                const score = calculateReadinessScore(intake);
+                const score = getReadinessScore(intake);
                 const initials = getInitials(
                   intake.client_first_name,
                   intake.client_last_name,

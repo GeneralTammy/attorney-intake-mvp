@@ -193,6 +193,10 @@ export async function PUT(
       },
     );
 
+    // All required fields filled (score >= 80 means the required
+    // portion is complete) → ready for attorney review.
+    const status = readinessScore >= 80 ? "ready_for_review" : "draft";
+
     const { error: updateError } = await supabase
       .from("intakes")
       .update({
@@ -202,6 +206,7 @@ export async function PUT(
         client_phone: body.client_phone ?? null,
         case_data: caseData,
         readiness_score: readinessScore,
+        status,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
