@@ -1,67 +1,99 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import {
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
-  Notification,
-} from "@/lib/notifications";
+import { createClient } from "@/lib/supabase/client";
+
+interface DbNotification {
+  id: string;
+  intake_id: string | null;
+  message: string;
+  type: string;
+  read: boolean;
+  created_at: string;
+}
+
+function timeAgo(iso: string): string {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<DbNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isClient, setIsClient] = useState(false);
+  const [enabled, setEnabled] = useState(true);
+  const supabase = createClient();
 
-  // This ensures the component only renders fully on the client
+  // Respect the in-app notifications preference from Settings
   useEffect(() => {
-    setIsClient(true);
-    const notifs = getNotifications();
-    setNotifications(notifs);
-    setUnreadCount(notifs.filter((n) => !n.read).length);
-
-    const handleStorageChange = () => {
-      const updated = getNotifications();
-      setNotifications(updated);
-      setUnreadCount(updated.filter((n) => !n.read).length);
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    supabase.auth.getUser().then(({ data }) => {
+      setEnabled(data.user?.user_metadata?.in_app_notifications !== false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleMarkAsRead = (id: string) => {
-    markAsRead(id);
-    const updated = getNotifications();
-    setNotifications(updated);
-    setUnreadCount(updated.filter((n) => !n.read).length);
+  const fetchNotifications = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("id, intake_id, message, type, read, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!error && data) {
+      setNotifications(data);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    fetchNotifications();
+    // Light polling so new submissions appear without a refresh
+    const interval = setInterval(fetchNotifications, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications, enabled]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  if (!enabled) return null;
+
+  const handleOpen = () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    if (next) fetchNotifications();
   };
 
-  const handleMarkAllAsRead = () => {
-    markAllAsRead();
-    const updated = getNotifications();
-    setNotifications(updated);
-    setUnreadCount(updated.filter((n) => !n.read).length);
-  };
-
-  // During SSR and before client hydration, render without the badge
-  if (!isClient) {
-    return (
-      <div className="relative">
-        <button className="relative w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center">
-          <Bell size={14} className="text-gray-500" />
-        </button>
-      </div>
+  const handleMarkAsRead = async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
-  }
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("read", false);
+  };
 
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpen}
         className="relative w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition"
+        aria-label="Notifications"
       >
         <Bell size={14} className="text-gray-500" />
         {unreadCount > 0 && (
@@ -128,16 +160,16 @@ export default function NotificationBell() {
                           {notif.message}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {notif.time}
+                          {timeAgo(notif.created_at)}
                         </p>
                       </div>
                       {!notif.read && (
                         <div className="w-1.5 h-1.5 rounded-full bg-[#3B5BDB] mt-1.5" />
                       )}
                     </div>
-                    {notif.intakeId && (
+                    {notif.intake_id && (
                       <Link
-                        href={`/dashboard/intakes/${notif.intakeId}`}
+                        href={`/dashboard/intakes/${notif.intake_id}`}
                         className="text-xs text-[#3B5BDB] mt-2 inline-block hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >

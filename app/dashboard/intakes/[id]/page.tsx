@@ -1,24 +1,25 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Briefcase,
   FileText,
-  Upload,
   CheckCircle2,
   AlertCircle,
   Download,
   Trash2,
   Link2,
-  Copy,
   Check,
+  Menu,
 } from "lucide-react";
 
-const B = "#3B5BDB";
-const BH = "#2F4AC2";
+import { DesktopSidebar, MobileSidebar } from "@/components/Sidebar";
+
+const SERIF = "'DM Serif Display', Georgia, serif";
+const MONO = "'DM Mono', ui-monospace, monospace";
 
 interface Intake {
   id: string;
@@ -30,19 +31,97 @@ interface Intake {
   case_data: Record<string, any>;
   status: string;
   created_at: string;
-  documents?: Document[];
 }
 
-interface Document {
-  id: string;
-  file_name: string;
-  file_path: string;
-  uploaded_at: string;
+function scoreColor(score: number) {
+  return score >= 80 ? "#12A06E" : score >= 50 ? "#C97A0A" : "#C93B3B";
+}
+
+function formatCaseType(raw: string) {
+  const types: Record<string, string> = {
+    personal_injury: "Personal Injury",
+    family: "Family Law",
+    criminal_defense: "Criminal Defense",
+    immigration: "Immigration",
+    estate_planning: "Estate Planning",
+  };
+  return (
+    types[raw] ||
+    raw?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case "ready_for_review":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ECFDF3] text-xs font-medium text-emerald-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#12A06E]" /> Ready for
+          Review
+        </span>
+      );
+    case "consultation_booked":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EEF2FF] text-xs font-medium text-[#3B5BDB]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#3B5BDB]" />{" "}
+          Consultation Booked
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F1F3F8] text-xs font-medium text-[#64748B]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#A9B1C2]" /> Draft
+        </span>
+      );
+  }
+}
+
+function MiniRing({ score }: { score: number }) {
+  const r = 40;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  const color = scoreColor(score);
+
+  return (
+    <div className="relative w-28 h-28 mx-auto">
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke="#EEF0F6"
+          strokeWidth="8"
+        />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 600ms ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span
+          className="text-2xl font-medium"
+          style={{ color, fontFamily: MONO }}
+        >
+          {score}%
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function IntakeDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const [intake, setIntake] = useState<Intake | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +130,26 @@ export default function IntakeDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
-  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [userName, setUserName] = useState("Attorney");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const supabase = createClient();
 
   const intakeId = params.id as string;
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUserName(
+          data.user.user_metadata?.full_name ??
+            data.user.email?.split("@")[0] ??
+            "Attorney",
+        );
+      }
+    });
     if (intakeId) {
       fetchIntake();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intakeId]);
 
   const fetchIntake = async () => {
@@ -118,7 +209,7 @@ export default function IntakeDetailPage() {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadReport = async () => {
     try {
       const response = await fetch(`/api/intakes/${intakeId}/pdf`);
       if (response.ok) {
@@ -132,11 +223,11 @@ export default function IntakeDetailPage() {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       } else {
-        alert("Failed to generate PDF");
+        alert("Failed to generate report file");
       }
     } catch (err) {
-      console.error("Error downloading PDF:", err);
-      alert("Error downloading PDF");
+      console.error("Error downloading report:", err);
+      alert("Error downloading report");
     }
   };
 
@@ -163,7 +254,6 @@ export default function IntakeDetailPage() {
 
   const handleShareLink = async () => {
     try {
-      // First, get or create share token
       const tokenResponse = await fetch(`/api/intakes/${intakeId}/share`);
       if (!tokenResponse.ok) {
         throw new Error("Failed to get share link");
@@ -172,248 +262,347 @@ export default function IntakeDetailPage() {
       const tokenData = await tokenResponse.json();
       const shareUrl = `${window.location.origin}/intake/${tokenData.share_token}`;
 
-      // Copy to clipboard
       await navigator.clipboard.writeText(shareUrl);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 3000);
-
-      // Also store the token for reference
-      setShareToken(tokenData.share_token);
     } catch (err) {
       console.error("Error getting share link:", err);
       alert("Failed to generate share link. Please try again.");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
-  if (error || !intake) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-800 mb-2">
-            {error || "Intake not found"}
-          </h2>
-          <Link
-            href="/dashboard"
-            className="inline-block mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Delete Intake
+    <div className="min-h-screen bg-[#F7F8FB]">
+      <MobileSidebar
+        userName={userName}
+        onSignOut={handleSignOut}
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        currentPath={pathname}
+      />
+      <DesktopSidebar
+        userName={userName}
+        onSignOut={handleSignOut}
+        currentPath={pathname}
+      />
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && intake && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] px-4">
+          <div className="bg-white rounded-2xl border border-[#E8EAF1] p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-[#0E1320] mb-2">
+              Delete this intake?
             </h3>
-            <p className="text-gray-500 mb-6">
-              Are you sure you want to delete the intake for{" "}
+            <p className="text-sm text-[#475569] mb-6">
+              This permanently removes the intake for{" "}
               <strong>
                 {intake.client_first_name} {intake.client_last_name}
-              </strong>
-              ? This action cannot be undone.
+              </strong>{" "}
+              and its readiness report. This can&rsquo;t be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-[#E0E4EE] rounded-lg text-sm font-medium text-[#334155] hover:bg-[#F7F8FB]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-[#C93B3B] text-white text-sm font-medium rounded-lg hover:bg-[#B22F2F] disabled:opacity-50"
               >
-                {deleting ? "Deleting..." : "Delete"}
+                {deleting ? "Deleting..." : "Delete intake"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Share Link Success Toast */}
+      {/* Copied toast */}
       {shareCopied && (
-        <div className="fixed bottom-4 right-4 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center gap-2 shadow-lg z-50">
-          <Check size={16} className="text-emerald-500" />
-          <span className="text-sm text-emerald-700">
-            Share link copied to clipboard!
+        <div className="fixed bottom-4 right-4 bg-white border border-[#E8EAF1] rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg z-[60]">
+          <Check size={16} className="text-[#12A06E]" />
+          <span className="text-sm text-[#0E1320]">
+            Share link copied to clipboard
           </span>
         </div>
       )}
 
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 transition"
-      >
-        <ArrowLeft size={16} /> Back to Dashboard
-      </Link>
-
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
-        <div className="flex flex-wrap justify-between items-start gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {intake.client_first_name} {intake.client_last_name}
-            </h1>
-            <p className="text-gray-500 mt-1">
-              {intake.case_type.replace(/_/g, " ")} • Created{" "}
-              {new Date(intake.created_at).toLocaleDateString()}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handleShareLink}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition flex items-center gap-2"
-            >
-              <Link2 size={16} />
-              {shareCopied ? "Copied!" : "Share Link"}
-            </button>
-            <button
-              onClick={generateReport}
-              disabled={generating}
-              className="px-5 py-2.5 bg-[#3B5BDB] text-white font-semibold rounded-xl hover:bg-[#2F4AC2] transition shadow-md disabled:opacity-50"
-            >
-              {generating ? "Generating..." : "Generate Report"}
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="px-5 py-2.5 border border-red-300 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition"
-            >
-              <Trash2 size={16} className="inline mr-1" /> Delete
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Client Information */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Client Information
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-400 uppercase">Full Name</p>
-                <p className="text-gray-900 font-medium">
-                  {intake.client_first_name} {intake.client_last_name}
-                </p>
-              </div>
-              {intake.client_email && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Email</p>
-                  <p className="text-gray-900">{intake.client_email}</p>
+      <div className="lg:pl-64">
+        <header className="bg-white/90 backdrop-blur border-b border-[#E8EAF1] sticky top-0 z-30">
+          <div className="px-5 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden p-2 text-[#64748B] hover:bg-[#F7F8FB] rounded-lg transition"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <h1
+                    className="text-xl text-[#0E1320] truncate"
+                    style={{ fontFamily: SERIF }}
+                  >
+                    {intake
+                      ? `${intake.client_first_name} ${intake.client_last_name}`
+                      : "Intake"}
+                  </h1>
+                  {intake && <StatusBadge status={intake.status} />}
                 </div>
-              )}
-              {intake.client_phone && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase">Phone</p>
-                  <p className="text-gray-900">{intake.client_phone}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-gray-400 uppercase">Case Type</p>
-                <p className="text-gray-900">
-                  {intake.case_type.replace(/_/g, " ")}
-                </p>
+                {intake && (
+                  <p className="text-xs text-[#94A3B8] mt-0.5">
+                    {formatCaseType(intake.case_type)} &middot; Created{" "}
+                    <span style={{ fontFamily: MONO }}>
+                      {new Date(intake.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
-          </div>
-
-          {/* Case Data */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Case Details
-            </h2>
-            {Object.keys(intake.case_data).length === 0 ? (
-              <p className="text-gray-400">No case data entered yet</p>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(intake.case_data).map(([key, value]) => (
-                  <div key={key}>
-                    <p className="text-sm font-semibold text-gray-700 capitalize">
-                      {key.replace(/_/g, " ")}
-                    </p>
-                    <p className="text-gray-600 whitespace-pre-wrap">
-                      {String(value)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Readiness Report
-            </h2>
-
-            {report ? (
-              <div>
-                <div className="text-center mb-4">
-                  <div className="text-4xl font-bold text-[#3B5BDB]">
-                    {report.overall_score}%
-                  </div>
-                  <p className="text-sm text-gray-500">Readiness Score</p>
-                </div>
-
-                {report.missing_fields && report.missing_fields.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-sm font-semibold text-red-600 mb-2">
-                      Missing ({report.missing_fields.length})
-                    </p>
-                    <div className="space-y-1">
-                      {report.missing_fields.map((item: any, idx: number) => (
-                        <div key={idx} className="text-sm text-gray-600">
-                          • {item.field.replace(/_/g, " ")}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
+            {intake && (
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={handleDownloadPDF}
-                  className="w-full mt-3 px-4 py-2 bg-[#3B5BDB] text-white font-semibold rounded-lg hover:bg-[#2F4AC2] transition"
+                  onClick={handleShareLink}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E0E4EE] text-[#334155] text-sm font-medium rounded-lg hover:bg-[#F7F8FB] transition"
                 >
-                  <Download size={16} className="inline mr-1" /> Download PDF
+                  <Link2 size={14} />
+                  <span className="hidden sm:inline">
+                    {shareCopied ? "Copied!" : "Share link"}
+                  </span>
                 </button>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <FileText size={40} className="text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 mb-4">No report generated yet</p>
                 <button
                   onClick={generateReport}
                   disabled={generating}
-                  className="px-4 py-2 bg-[#3B5BDB] text-white rounded-lg hover:bg-[#2F4AC2] transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-sm font-medium rounded-lg transition shadow-sm disabled:opacity-50"
                 >
-                  Generate Report
+                  <FileText size={14} />
+                  <span className="hidden sm:inline">
+                    {generating ? "Generating..." : "Generate report"}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  aria-label="Delete intake"
+                  className="p-2 text-[#94A3B8] hover:text-[#C93B3B] hover:bg-red-50 rounded-lg transition"
+                >
+                  <Trash2 size={15} />
                 </button>
               </div>
             )}
           </div>
-        </div>
+        </header>
+
+        <main className="px-5 lg:px-8 py-8">
+          <div className="max-w-6xl mx-auto">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 text-sm text-[#64748B] hover:text-[#0E1320] mb-6 transition"
+            >
+              <ArrowLeft size={15} /> Back to dashboard
+            </Link>
+
+            {loading && (
+              <div className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm py-20 flex items-center justify-center gap-3 text-[#64748B]">
+                <div className="w-4 h-4 border-2 border-[#3B5BDB] border-t-transparent rounded-full animate-spin" />
+                Loading intake...
+              </div>
+            )}
+
+            {!loading && (error || !intake) && (
+              <div className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm p-10 text-center">
+                <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle size={24} className="text-[#C93B3B]" />
+                </div>
+                <h2 className="text-lg font-semibold text-[#0E1320] mb-1.5">
+                  {error || "Intake not found"}
+                </h2>
+                <Link
+                  href="/dashboard"
+                  className="inline-block mt-4 px-4 py-2.5 bg-[#3B5BDB] text-white text-sm font-medium rounded-lg hover:bg-[#2F4AC2] transition"
+                >
+                  Back to dashboard
+                </Link>
+              </div>
+            )}
+
+            {!loading && intake && (
+              <div className="grid lg:grid-cols-3 gap-6 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                  <section className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm p-6 sm:p-7">
+                    <h2 className="text-sm font-semibold text-[#0E1320] mb-5">
+                      Client Information
+                    </h2>
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      <div>
+                        <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">
+                          Full name
+                        </p>
+                        <p className="text-sm font-medium text-[#0E1320]">
+                          {intake.client_first_name} {intake.client_last_name}
+                        </p>
+                      </div>
+                      {intake.client_email && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">
+                            Email
+                          </p>
+                          <p
+                            className="text-sm text-[#0E1320]"
+                            style={{ fontFamily: MONO }}
+                          >
+                            {intake.client_email}
+                          </p>
+                        </div>
+                      )}
+                      {intake.client_phone && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">
+                            Phone
+                          </p>
+                          <p
+                            className="text-sm text-[#0E1320]"
+                            style={{ fontFamily: MONO }}
+                          >
+                            {intake.client_phone}
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-1">
+                          Case type
+                        </p>
+                        <p className="text-sm text-[#0E1320]">
+                          {formatCaseType(intake.case_type)}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm p-6 sm:p-7">
+                    <h2 className="text-sm font-semibold text-[#0E1320] mb-5">
+                      Case Details
+                    </h2>
+                    {Object.keys(intake.case_data || {}).length === 0 ? (
+                      <p className="text-sm text-[#94A3B8] py-4 text-center">
+                        Nothing here yet — share the intake link with your
+                        client to collect case details.
+                      </p>
+                    ) : (
+                      <div className="space-y-5">
+                        {Object.entries(intake.case_data).map(
+                          ([key, value]) => (
+                            <div
+                              key={key}
+                              className="pb-5 border-b border-[#F1F3F8] last:border-0 last:pb-0"
+                            >
+                              <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-1.5">
+                                {key.replace(/_/g, " ")}
+                              </p>
+                              <p className="text-sm text-[#334155] leading-relaxed whitespace-pre-wrap">
+                                {String(value)}
+                              </p>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </div>
+
+                <aside className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm overflow-hidden lg:sticky lg:top-24">
+                  <div className="px-6 py-4 border-b border-[#EEF0F6]">
+                    <h2 className="text-sm font-semibold text-[#0E1320]">
+                      Readiness Report
+                    </h2>
+                  </div>
+
+                  {report ? (
+                    <div className="p-6">
+                      <MiniRing score={report.overall_score} />
+
+                      {report.missing_fields &&
+                      report.missing_fields.length > 0 ? (
+                        <div className="mt-5">
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <AlertCircle size={14} className="text-[#C97A0A]" />
+                            <p className="text-xs font-semibold text-[#0E1320]">
+                              Missing
+                            </p>
+                            <span
+                              className="text-xs text-[#94A3B8]"
+                              style={{ fontFamily: MONO }}
+                            >
+                              {report.missing_fields.length}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {report.missing_fields.map(
+                              (item: any, idx: number) => (
+                                <p
+                                  key={idx}
+                                  className="text-xs text-[#9A6B14] bg-[#FFF8EB] border border-amber-100 rounded-lg px-3 py-2 capitalize"
+                                >
+                                  {item.field.replace(/_/g, " ")}
+                                </p>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-5 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#ECFDF3] text-xs font-medium text-emerald-700">
+                          <CheckCircle2 size={14} className="text-[#12A06E]" />
+                          All required fields complete
+                        </div>
+                      )}
+
+                      <Link
+                        href={`/dashboard/intakes/${intakeId}/readiness`}
+                        className="block mt-5 text-center text-sm font-medium text-[#3B5BDB] hover:text-[#2F4AC2]"
+                      >
+                        View full report →
+                      </Link>
+
+                      <button
+                        onClick={handleDownloadReport}
+                        className="w-full mt-4 px-4 py-2.5 bg-[#3B5BDB] text-white text-sm font-medium rounded-lg hover:bg-[#2F4AC2] transition flex items-center justify-center gap-2"
+                      >
+                        <Download size={15} /> Download report
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center">
+                      <div className="w-12 h-12 rounded-full bg-[#F1F3F8] flex items-center justify-center mx-auto mb-3">
+                        <FileText size={18} className="text-[#C2C9D6]" />
+                      </div>
+                      <p className="text-sm text-[#64748B] mb-4">
+                        No report yet — generate one to see what&rsquo;s
+                        missing.
+                      </p>
+                      <button
+                        onClick={generateReport}
+                        disabled={generating}
+                        className="px-4 py-2.5 bg-[#3B5BDB] text-white text-sm font-medium rounded-lg hover:bg-[#2F4AC2] transition disabled:opacity-50"
+                      >
+                        {generating ? "Generating..." : "Generate report"}
+                      </button>
+                    </div>
+                  )}
+                </aside>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );

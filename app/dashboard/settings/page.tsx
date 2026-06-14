@@ -2,12 +2,9 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import {
-  Briefcase,
   Menu,
-  X,
   User,
   Shield,
   Save,
@@ -15,214 +12,47 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  LogOut,
-  LayoutDashboard,
-  PlusCircle,
-  Settings,
   Bell,
 } from "lucide-react";
 
-const B = "#3B5BDB";
+import { DesktopSidebar, MobileSidebar } from "@/components/Sidebar";
 
-function Sidebar({
-  userName,
-  onSignOut,
-  currentPath,
+const SERIF = "'DM Serif Display', Georgia, serif";
+
+const inputClass =
+  "w-full px-4 py-3 text-base text-[#0E1320] placeholder:text-[#9AA3B5] bg-white border border-[#E0E4EE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/60 focus:border-[#3B5BDB] transition-shadow";
+
+function SectionCard({
+  icon,
+  title,
+  description,
+  children,
 }: {
-  userName: string;
-  onSignOut: () => void;
-  currentPath: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children: React.ReactNode;
 }) {
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/intakes/new", label: "New Intake", icon: PlusCircle },
-  ];
-
   return (
-    <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 flex flex-col">
-      <div className="px-5 py-5 border-b border-gray-100">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
-            <Briefcase size={15} className="text-white" />
+    <div className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm overflow-hidden mb-6">
+      <div className="px-6 py-4 border-b border-[#EEF0F6]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#EEF2FF] flex items-center justify-center">
+            {icon}
           </div>
-          <span className="font-semibold text-base text-gray-900">
-            Case<span className="text-[#3B5BDB]">Ready</span>
-          </span>
-        </Link>
-      </div>
-
-      <div className="px-4 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center">
-            <span className="text-[#3B5BDB] text-sm font-medium">
-              {userName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {userName}
-            </p>
-            <p className="text-xs text-gray-400">Solo Practitioner</p>
+          <div>
+            <h2 className="text-sm font-semibold text-[#0E1320]">{title}</h2>
+            <p className="text-xs text-[#94A3B8] mt-0.5">{description}</p>
           </div>
         </div>
       </div>
-
-      <nav className="flex-1 px-3 py-5 space-y-0.5">
-        <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2">
-          Main
-        </div>
-        {navItems.map((item) => {
-          const isActive = currentPath === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                isActive
-                  ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-            >
-              <item.icon
-                size={16}
-                className={isActive ? "text-[#3B5BDB]" : "text-gray-400"}
-              />
-              {item.label}
-            </Link>
-          );
-        })}
-
-        <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
-          Account
-        </div>
-        <Link
-          href="/dashboard/settings"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-            currentPath === "/dashboard/settings"
-              ? "bg-[#EEF2FF] text-[#3B5BDB] font-medium"
-              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-          }`}
-        >
-          <Settings
-            size={16}
-            className={
-              currentPath === "/dashboard/settings"
-                ? "text-[#3B5BDB]"
-                : "text-gray-400"
-            }
-          />
-          Settings
-        </Link>
-      </nav>
-
-      <div className="p-4 border-t border-gray-100">
-        <button
-          onClick={onSignOut}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
-        >
-          <LogOut size={16} /> Sign out
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function MobileSidebar({
-  userName,
-  onSignOut,
-  isOpen,
-  onClose,
-}: {
-  userName: string;
-  onSignOut: () => void;
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/intakes/new", label: "New Intake", icon: PlusCircle },
-  ];
-
-  if (!isOpen) return null;
-
-  return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-        onClick={onClose}
-      />
-      <aside className="fixed top-0 left-0 h-full w-72 bg-white z-50 flex flex-col shadow-xl lg:hidden">
-        <div className="px-5 py-5 border-b border-gray-100 flex justify-between items-center">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
-              <Briefcase size={15} className="text-white" />
-            </div>
-            <span className="font-semibold text-base text-gray-900">
-              Case<span className="text-[#3B5BDB]">Ready</span>
-            </span>
-          </Link>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div className="px-4 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center">
-              <span className="text-[#3B5BDB] text-sm font-medium">
-                {userName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">{userName}</p>
-              <p className="text-xs text-gray-400">Solo Practitioner</p>
-            </div>
-          </div>
-        </div>
-        <nav className="flex-1 px-3 py-5 space-y-0.5">
-          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2">
-            Main
-          </div>
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
-            >
-              <item.icon size={16} className="text-gray-400" /> {item.label}
-            </Link>
-          ))}
-          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-3 pb-2 pt-6">
-            Account
-          </div>
-          <Link
-            href="/dashboard/settings"
-            onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
-          >
-            <Settings size={16} className="text-gray-400" /> Settings
-          </Link>
-        </nav>
-        <div className="p-4 border-t border-gray-100">
-          <button
-            onClick={() => {
-              onSignOut();
-              onClose();
-            }}
-            className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
-          >
-            <LogOut size={16} /> Sign out
-          </button>
-        </div>
-      </aside>
-    </>
+      {children}
+    </div>
   );
 }
 
 export default function SettingsPage() {
+  const pathname = usePathname();
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [firmName, setFirmName] = useState("");
@@ -236,12 +66,14 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [inAppNotifications, setInAppNotifications] = useState(true);
+  const [savingNotifPref, setSavingNotifPref] = useState(false);
 
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     fetchUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUserProfile = async () => {
@@ -258,6 +90,10 @@ export default function SettingsPage() {
           "Attorney";
         setUserName(name);
         setFirmName(user.user_metadata?.firm_name || "");
+        // Stored preference; defaults to enabled when never set
+        setInAppNotifications(
+          user.user_metadata?.in_app_notifications !== false,
+        );
       } else {
         router.push("/login");
       }
@@ -285,7 +121,7 @@ export default function SettingsPage() {
       });
 
       if (error) throw error;
-      setSuccess("Profile updated successfully");
+      setSuccess("Profile updated");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
       setError(err.message);
@@ -315,7 +151,7 @@ export default function SettingsPage() {
       });
 
       if (error) throw error;
-      setSuccess("Password updated successfully");
+      setSuccess("Password updated");
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setSuccess(""), 3000);
@@ -326,47 +162,70 @@ export default function SettingsPage() {
     }
   };
 
+  // Persist the toggle to user metadata — optimistic, reverts on failure
+  const handleToggleNotifications = async () => {
+    const next = !inAppNotifications;
+    setInAppNotifications(next);
+    setSavingNotifPref(true);
+    setError("");
+
+    const { error } = await supabase.auth.updateUser({
+      data: { in_app_notifications: next },
+    });
+
+    if (error) {
+      setInAppNotifications(!next);
+      setError("Could not save notification preference. Try again.");
+    }
+    setSavingNotifPref(false);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen bg-[#F7F8FB] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-[#64748B]">
+          <div className="w-4 h-4 border-2 border-[#3B5BDB] border-t-transparent rounded-full animate-spin" />
+          Loading...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F7F8FB]">
       <MobileSidebar
         userName={userName}
         onSignOut={handleSignOut}
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
+        currentPath={pathname}
       />
-      <Sidebar
+      <DesktopSidebar
         userName={userName}
         onSignOut={handleSignOut}
-        currentPath="/dashboard/settings"
+        currentPath={pathname}
       />
 
       <div className="lg:pl-64">
-        <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
+        <header className="bg-white/90 backdrop-blur border-b border-[#E8EAF1] sticky top-0 z-30">
           <div className="px-5 lg:px-8 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setMobileMenuOpen(true)}
-                  className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden p-2 text-[#64748B] hover:bg-[#F7F8FB] rounded-lg transition"
+              >
+                <Menu size={20} />
+              </button>
+              <div>
+                <h1
+                  className="text-xl text-[#0E1320]"
+                  style={{ fontFamily: SERIF }}
                 >
-                  <Menu size={20} />
-                </button>
-                <div>
-                  <h1 className="text-lg font-semibold text-gray-900">
-                    Settings
-                  </h1>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Manage your account preferences
-                  </p>
-                </div>
+                  Settings
+                </h1>
+                <p className="text-xs text-[#94A3B8] mt-0.5">
+                  Manage your account preferences
+                </p>
               </div>
             </div>
           </div>
@@ -375,100 +234,85 @@ export default function SettingsPage() {
         <main className="px-5 lg:px-8 py-6">
           <div className="max-w-3xl mx-auto">
             {success && (
-              <div className="mb-6 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-500" />
+              <div className="mb-6 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-[#12A06E]" />
                 <p className="text-sm text-emerald-700">{success}</p>
               </div>
             )}
 
             {error && (
-              <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2">
-                <AlertCircle size={16} className="text-red-500" />
+              <div className="mb-6 px-4 py-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
+                <AlertCircle size={16} className="text-[#C93B3B]" />
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
-            {/* Profile Section */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-[#3B5BDB]" />
-                  <h2 className="text-sm font-semibold text-gray-900">
-                    Profile Information
-                  </h2>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Update your personal information
-                </p>
-              </div>
+            <SectionCard
+              icon={<User size={15} className="text-[#3B5BDB]" />}
+              title="Profile"
+              description="Your name and firm details"
+            >
               <form onSubmit={handleUpdateProfile} className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Full Name
+                  <label className="block text-sm font-medium text-[#334155] mb-2">
+                    Full name
                   </label>
                   <input
                     type="text"
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] focus:border-[#3B5BDB] transition"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Email Address
+                  <label className="block text-sm font-medium text-[#334155] mb-2">
+                    Email address
                   </label>
                   <input
                     type="email"
                     value={email}
                     disabled
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    className={`${inputClass} bg-[#F7F8FB] text-[#94A3B8] cursor-not-allowed`}
                   />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Email cannot be changed. Contact support for assistance.
+                  <p className="text-xs text-[#94A3B8] mt-1.5">
+                    Email can&rsquo;t be changed here. Contact support for
+                    assistance.
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Firm Name
+                  <label className="block text-sm font-medium text-[#334155] mb-2">
+                    Firm name
                   </label>
                   <input
                     type="text"
                     value={firmName}
                     onChange={(e) => setFirmName(e.target.value)}
                     placeholder="Law Office of..."
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] focus:border-[#3B5BDB] transition"
+                    className={inputClass}
                   />
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-sm font-medium rounded-lg transition shadow-sm disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-sm font-medium rounded-lg transition shadow-sm disabled:opacity-50"
                   >
-                    {saving ? "Saving..." : "Save Changes"}
+                    {saving ? "Saving..." : "Save changes"}
                     {!saving && <Save size={14} />}
                   </button>
                 </div>
               </form>
-            </div>
+            </SectionCard>
 
-            {/* Password Section */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <Shield size={16} className="text-[#3B5BDB]" />
-                  <h2 className="text-sm font-semibold text-gray-900">
-                    Security
-                  </h2>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Update your password
-                </p>
-              </div>
+            <SectionCard
+              icon={<Shield size={15} className="text-[#3B5BDB]" />}
+              title="Security"
+              description="Update your password"
+            >
               <form onSubmit={handleUpdatePassword} className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    New Password
+                  <label className="block text-sm font-medium text-[#334155] mb-2">
+                    New password
                   </label>
                   <div className="relative">
                     <input
@@ -476,75 +320,73 @@ export default function SettingsPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] focus:border-[#3B5BDB] transition pr-9"
+                      className={`${inputClass} pr-11`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569]"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
-                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Confirm New Password
+                  <label className="block text-sm font-medium text-[#334155] mb-2">
+                    Confirm new password
                   </label>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm new password"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3B5BDB] focus:border-[#3B5BDB] transition"
+                    className={inputClass}
                   />
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     disabled={passwordLoading || !newPassword}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-sm font-medium rounded-lg transition shadow-sm disabled:opacity-50"
+                    className="px-4 py-2.5 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-sm font-medium rounded-lg transition shadow-sm disabled:opacity-50"
                   >
-                    {passwordLoading ? "Updating..." : "Update Password"}
+                    {passwordLoading ? "Updating..." : "Update password"}
                   </button>
                 </div>
               </form>
-            </div>
+            </SectionCard>
 
-            {/* Notifications Section */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <Bell size={16} className="text-[#3B5BDB]" />
-                  <h2 className="text-sm font-semibold text-gray-900">
-                    Notifications
-                  </h2>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Manage your notification preferences
-                </p>
-              </div>
+            <SectionCard
+              icon={<Bell size={15} className="text-[#3B5BDB]" />}
+              title="Notifications"
+              description="How CaseReady keeps you informed"
+            >
               <div className="p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-[#0E1320]">
                       In-app notifications
                     </p>
-                    <p className="text-xs text-gray-400">
-                      Receive notifications about case readiness and updates
+                    <p className="text-xs text-[#94A3B8] mt-0.5">
+                      Show alerts in your dashboard when clients submit intake
+                      forms
                     </p>
                   </div>
                   <button
-                    onClick={() => setInAppNotifications(!inAppNotifications)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${inAppNotifications ? "bg-[#3B5BDB]" : "bg-gray-200"}`}
+                    onClick={handleToggleNotifications}
+                    disabled={savingNotifPref}
+                    aria-pressed={inAppNotifications}
+                    className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-60 ${inAppNotifications ? "bg-[#3B5BDB]" : "bg-[#D7DCE7]"}`}
                   >
                     <span
-                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${inAppNotifications ? "translate-x-5" : "translate-x-0.5"}`}
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${inAppNotifications ? "translate-x-5" : "translate-x-0.5"}`}
                     />
                   </button>
                 </div>
               </div>
-            </div>
+            </SectionCard>
           </div>
         </main>
       </div>

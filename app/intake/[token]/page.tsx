@@ -1,8 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
   Briefcase,
   Mail,
@@ -10,13 +9,14 @@ import {
   User,
   AlertCircle,
   CheckCircle2,
-  ChevronDown,
+  ShieldCheck,
   ArrowRight,
 } from "lucide-react";
 
-const B = "#3B5BDB";
+const SERIF = "'DM Serif Display', Georgia, serif";
+const MONO = "'DM Mono', ui-monospace, monospace";
 
-// Case type configurations (same as before)
+// Case type configurations
 const caseTypeConfigs: Record<string, any> = {
   personal_injury: {
     label: "Personal Injury",
@@ -132,7 +132,7 @@ function formatFieldName(field: string): string {
     .join(" ");
 }
 
-function calculateReadinessScore(
+function calculateProgress(
   clientInfo: any,
   formData: any,
   requiredFields: string[],
@@ -153,11 +153,15 @@ function calculateReadinessScore(
   return { score, completedRequired, totalRequired };
 }
 
+function scoreColor(score: number) {
+  return score >= 80 ? "#12A06E" : score >= 50 ? "#C97A0A" : "#C93B3B";
+}
+
 function ScoreRing({ score }: { score: number }) {
   const r = 44;
   const circ = 2 * Math.PI * r;
   const offset = circ - (score / 100) * circ;
-  const color = score >= 80 ? "#12A06E" : score >= 50 ? "#C97A0A" : "#C93B3B";
+  const color = scoreColor(score);
 
   return (
     <div className="relative w-32 h-32 mx-auto">
@@ -167,7 +171,7 @@ function ScoreRing({ score }: { score: number }) {
           cy="54"
           r={r}
           fill="none"
-          stroke="#F0F0F5"
+          stroke="#EEF0F6"
           strokeWidth="9"
         />
         <circle
@@ -180,19 +184,34 @@ function ScoreRing({ score }: { score: number }) {
           strokeDasharray={circ}
           strokeDashoffset={offset}
           strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 400ms ease" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold leading-none" style={{ color }}>
+        <span
+          className="text-3xl font-medium leading-none"
+          style={{ color, fontFamily: MONO }}
+        >
           {score}%
         </span>
-        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1">
+        <span className="text-[10px] text-[#94A3B8] font-medium uppercase tracking-[0.12em] mt-1.5">
           Complete
         </span>
       </div>
     </div>
   );
 }
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#3B5BDB]">
+      {children}
+    </p>
+  );
+}
+
+const inputClass =
+  "w-full px-4 py-3.5 text-base text-[#0E1320] placeholder:text-[#9AA3B5] bg-white border border-[#E0E4EE] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/60 focus:border-[#3B5BDB] transition-shadow";
 
 export default function PublicIntakePage() {
   const params = useParams();
@@ -203,6 +222,7 @@ export default function PublicIntakePage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [intake, setIntake] = useState<any>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [clientInfo, setClientInfo] = useState({
     first_name: "",
@@ -210,31 +230,64 @@ export default function PublicIntakePage() {
     email: "",
     phone: "",
   });
+  const loaded = useRef(false);
 
   useEffect(() => {
     if (token) {
       fetchIntake();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Autosave draft per link so a refresh never loses the client's answers
+  useEffect(() => {
+    if (!loaded.current || submitted) return;
+    try {
+      localStorage.setItem(
+        `caseready-draft-${token}`,
+        JSON.stringify({ clientInfo, formData }),
+      );
+    } catch {
+      /* storage unavailable — autosave is best-effort */
+    }
+  }, [clientInfo, formData, token, submitted]);
 
   const fetchIntake = async () => {
     try {
-      console.log("Fetching token:", token);
       const response = await fetch(`/api/public/intake/${token}`);
-      console.log("Response status:", response.status);
-
       const data = await response.json();
-      console.log("Response data:", data);
 
       if (response.ok) {
         setIntake(data);
-        setFormData(data.case_data || {});
-        setClientInfo({
+
+        let nextForm = data.case_data || {};
+        let nextClient = {
           first_name: data.client_first_name || "",
           last_name: data.client_last_name || "",
           email: data.client_email || "",
           phone: data.client_phone || "",
-        });
+        };
+
+        // A locally saved draft is newer than the server copy — restore it
+        try {
+          const raw = localStorage.getItem(`caseready-draft-${token}`);
+          if (raw) {
+            const draft = JSON.parse(raw);
+            if (draft?.formData && Object.keys(draft.formData).length > 0) {
+              nextForm = { ...nextForm, ...draft.formData };
+              setDraftRestored(true);
+            }
+            if (draft?.clientInfo?.first_name || draft?.clientInfo?.email) {
+              nextClient = { ...nextClient, ...draft.clientInfo };
+            }
+          }
+        } catch {
+          /* corrupted draft — ignore */
+        }
+
+        setFormData(nextForm);
+        setClientInfo(nextClient);
+        loaded.current = true;
       } else {
         setError(data.error || "This intake link is invalid or has expired.");
       }
@@ -265,6 +318,11 @@ export default function PublicIntakePage() {
       });
 
       if (response.ok) {
+        try {
+          localStorage.removeItem(`caseready-draft-${token}`);
+        } catch {
+          /* ignore */
+        }
         setSubmitted(true);
       } else {
         const errorData = await response.json();
@@ -279,27 +337,31 @@ export default function PublicIntakePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen bg-[#F7F8FB] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-[#64748B]">
+          <div className="w-4 h-4 border-2 border-[#3B5BDB] border-t-transparent rounded-full animate-spin" />
+          Loading your intake form...
+        </div>
       </div>
     );
   }
 
-  if (error || !intake) {
+  if (error && !intake) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-        <div className="max-w-md text-center">
-          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle size={40} className="text-red-500" />
+      <div className="min-h-screen bg-[#F7F8FB] flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-white border border-[#E8EAF1] rounded-2xl p-10 text-center shadow-sm">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={28} className="text-[#C93B3B]" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
-            Intake Link Invalid
+          <h1
+            className="text-3xl text-[#0E1320] mb-3"
+            style={{ fontFamily: SERIF }}
+          >
+            This link isn&rsquo;t working
           </h1>
-          <p className="text-gray-500 mb-2">
-            {error || "This intake link is no longer valid or has expired."}
-          </p>
-          <p className="text-sm text-gray-400">
-            Please contact your attorney to request a new link.
+          <p className="text-[#475569] mb-2">{error}</p>
+          <p className="text-sm text-[#94A3B8]">
+            Contact your attorney to request a new intake link.
           </p>
         </div>
       </div>
@@ -308,344 +370,406 @@ export default function PublicIntakePage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 size={32} className="text-emerald-500" />
+      <div className="min-h-screen bg-[#F7F8FB] flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-white border border-[#E8EAF1] rounded-2xl p-10 text-center shadow-sm">
+          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 size={28} className="text-[#12A06E]" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h1>
-          <p className="text-gray-500 mb-6">
-            Your information has been submitted successfully. The attorney will
-            review your case and reach out shortly.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-2.5 bg-[#3B5BDB] text-white font-semibold rounded-lg hover:bg-[#2F4AC2] transition"
+          <h1
+            className="text-3xl text-[#0E1320] mb-3"
+            style={{ fontFamily: SERIF }}
           >
-            Return Home
-          </Link>
+            Thank you
+          </h1>
+          <p className="text-[#475569] mb-6">
+            Your information has been securely delivered to your attorney.
+            They&rsquo;ll review your case and reach out to you shortly.
+          </p>
+          <div className="flex items-center justify-center gap-2 text-sm text-[#94A3B8]">
+            <ShieldCheck size={15} className="text-[#12A06E]" />
+            You may now close this page.
+          </div>
         </div>
       </div>
     );
   }
 
   const currentConfig = caseTypeConfigs[intake.case_type];
-  const { score, completedRequired, totalRequired } = calculateReadinessScore(
+  const { score, completedRequired, totalRequired } = calculateProgress(
     clientInfo,
     formData,
     currentConfig.required,
   );
-  const scoreBarColor =
-    score >= 80
-      ? "bg-emerald-500"
-      : score >= 50
-        ? "bg-amber-400"
-        : "bg-red-400";
-  const scoreTextColor =
-    score >= 80
-      ? "text-emerald-600"
-      : score >= 50
-        ? "text-amber-600"
-        : "text-red-500";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 py-4">
-        <div className="max-w-6xl mx-auto">
-          <Link href="/" className="flex items-center gap-2.5">
+    <div className="min-h-screen bg-[#F7F8FB] pb-20 lg:pb-0">
+      <header className="bg-white/80 backdrop-blur border-b border-[#E8EAF1] px-6 py-4 sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#3B5BDB] flex items-center justify-center">
-              <Briefcase size={16} className="text-white" />
+              <Briefcase size={15} className="text-white" />
             </div>
-            <span className="font-semibold text-lg text-gray-900">
+            <span className="font-semibold text-lg text-[#0E1320]">
               Case<span className="text-[#3B5BDB]">Ready</span>
             </span>
-          </Link>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-[#64748B]">
+            <ShieldCheck size={14} className="text-[#12A06E]" />
+            <span className="hidden sm:inline">Secure intake —</span> goes
+            directly to your attorney
+          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="flex-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="border-b border-gray-100 px-6 py-5 bg-gray-50/50">
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Client Intake Form
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  Please provide the following information for your{" "}
-                  {currentConfig.label} case.
-                </p>
-              </div>
+      <main className="max-w-5xl mx-auto px-6 py-12">
+        <div className="mb-10 max-w-2xl">
+          <Eyebrow>Client intake</Eyebrow>
+          <h1
+            className="text-4xl sm:text-5xl text-[#0E1320] mt-3 mb-4"
+            style={{ fontFamily: SERIF }}
+          >
+            {currentConfig.label} Intake
+          </h1>
+          <p className="text-[#475569] text-lg leading-relaxed">
+            Your attorney has requested the information below to prepare your
+            case. Everything you share here is confidential. Your answers are
+            saved on this device as you type, so you can leave and come back.
+          </p>
+          {draftRestored && (
+            <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-2 bg-[#EEF2FF] text-[#3B5BDB] text-sm font-medium rounded-lg">
+              <CheckCircle2 size={15} />
+              We restored your earlier answers — pick up where you left off.
+            </div>
+          )}
+        </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="border-b border-gray-100 pb-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <User size={16} className="text-[#3B5BDB]" />
-                    <h2 className="text-base font-semibold text-gray-900">
-                      Your Information
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          <div className="flex-1 w-full">
+            <form onSubmit={handleSubmit}>
+              <section className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm p-7 sm:p-10 mb-6">
+                <div className="flex items-baseline justify-between gap-4 mb-7 pb-5 border-b border-[#EEF0F6]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-[#EEF2FF] flex items-center justify-center">
+                      <User size={16} className="text-[#3B5BDB]" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-[#0E1320]">
+                      About you
                     </h2>
-                    <span className="text-xs text-red-500 ml-auto">
-                      * Required
-                    </span>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        First Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={clientInfo.first_name}
-                        onChange={(e) =>
-                          setClientInfo({
-                            ...clientInfo,
-                            first_name: e.target.value,
-                          })
-                        }
-                        placeholder="John"
-                        className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Last Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={clientInfo.last_name}
-                        onChange={(e) =>
-                          setClientInfo({
-                            ...clientInfo,
-                            last_name: e.target.value,
-                          })
-                        }
-                        placeholder="Doe"
-                        className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <Mail size={14} className="inline mr-1" /> Email Address
-                      </label>
-                      <input
-                        type="email"
-                        value={clientInfo.email}
-                        onChange={(e) =>
-                          setClientInfo({
-                            ...clientInfo,
-                            email: e.target.value,
-                          })
-                        }
-                        placeholder="john@example.com"
-                        className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <Phone size={14} className="inline mr-1" /> Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={clientInfo.phone}
-                        onChange={(e) =>
-                          setClientInfo({
-                            ...clientInfo,
-                            phone: e.target.value,
-                          })
-                        }
-                        placeholder="(555) 555-5555"
-                        className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                      />
-                    </div>
-                  </div>
+                  <span
+                    className="text-xs text-[#94A3B8]"
+                    style={{ fontFamily: MONO }}
+                  >
+                    1 / 2
+                  </span>
                 </div>
 
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Briefcase size={16} className="text-[#3B5BDB]" />
-                    <h2 className="text-base font-semibold text-gray-900">
-                      Case Information
-                    </h2>
-                    <span className="text-xs text-red-500 ml-auto">
-                      * Required
-                    </span>
-                  </div>
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Case Type
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-[#334155] mb-2">
+                      First name <span className="text-[#C93B3B]">*</span>
                     </label>
                     <input
                       type="text"
-                      value={currentConfig.label}
-                      disabled
-                      className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                      required
+                      value={clientInfo.first_name}
+                      onChange={(e) =>
+                        setClientInfo({
+                          ...clientInfo,
+                          first_name: e.target.value,
+                        })
+                      }
+                      placeholder="John"
+                      className={inputClass}
                     />
-                    <p className="text-xs text-gray-400 mt-1">
-                      {currentConfig.description}
-                    </p>
                   </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-1 h-5 bg-red-500 rounded-full" />
-                      <h3 className="font-semibold text-gray-900">
-                        Required Information
-                      </h3>
-                    </div>
-                    {currentConfig.required.map((field: string) => {
-                      const fieldType =
-                        currentConfig.fieldTypes[field] ?? "textarea";
-                      const placeholder =
-                        currentConfig.fieldPlaceholders[field] ?? "";
-                      return (
-                        <div key={field}>
-                          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1 capitalize">
-                            {formatFieldName(field)}{" "}
-                            <span className="text-red-500">*</span>
-                            {formData[field]?.trim() && (
-                              <CheckCircle2
-                                size={14}
-                                className="text-emerald-500"
-                              />
-                            )}
-                          </label>
-                          {fieldType === "date" ? (
-                            <input
-                              type="date"
-                              required
-                              value={formData[field] || ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  [field]: e.target.value,
-                                })
-                              }
-                              className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                            />
-                          ) : fieldType === "text" ? (
-                            <input
-                              type="text"
-                              required
-                              value={formData[field] || ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  [field]: e.target.value,
-                                })
-                              }
-                              placeholder={placeholder}
-                              className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent"
-                            />
-                          ) : (
-                            <textarea
-                              rows={3}
-                              required
-                              value={formData[field] || ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  [field]: e.target.value,
-                                })
-                              }
-                              placeholder={placeholder}
-                              className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] focus:border-transparent resize-none"
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div>
+                    <label className="block text-sm font-medium text-[#334155] mb-2">
+                      Last name <span className="text-[#C93B3B]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={clientInfo.last_name}
+                      onChange={(e) =>
+                        setClientInfo({
+                          ...clientInfo,
+                          last_name: e.target.value,
+                        })
+                      }
+                      placeholder="Doe"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-[#334155] mb-2">
+                      <Mail size={13} className="text-[#94A3B8]" /> Email
+                      address
+                    </label>
+                    <input
+                      type="email"
+                      value={clientInfo.email}
+                      onChange={(e) =>
+                        setClientInfo({ ...clientInfo, email: e.target.value })
+                      }
+                      placeholder="john@example.com"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-[#334155] mb-2">
+                      <Phone size={13} className="text-[#94A3B8]" /> Phone
+                      number
+                    </label>
+                    <input
+                      type="tel"
+                      value={clientInfo.phone}
+                      onChange={(e) =>
+                        setClientInfo({ ...clientInfo, phone: e.target.value })
+                      }
+                      placeholder="(555) 555-5555"
+                      className={inputClass}
+                    />
                   </div>
                 </div>
+              </section>
+
+              <section className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm p-7 sm:p-10">
+                <div className="flex items-baseline justify-between gap-4 mb-7 pb-5 border-b border-[#EEF0F6]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-[#EEF2FF] flex items-center justify-center">
+                      <Briefcase size={16} className="text-[#3B5BDB]" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold text-[#0E1320]">
+                        Your case
+                      </h2>
+                      <p className="text-sm text-[#94A3B8] mt-0.5">
+                        {currentConfig.label} &middot;{" "}
+                        {currentConfig.description}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className="text-xs text-[#94A3B8]"
+                    style={{ fontFamily: MONO }}
+                  >
+                    2 / 2
+                  </span>
+                </div>
+
+                <div className="space-y-6">
+                  {currentConfig.required.map((field: string) => {
+                    const fieldType =
+                      currentConfig.fieldTypes[field] ?? "textarea";
+                    const placeholder =
+                      currentConfig.fieldPlaceholders[field] ?? "";
+                    const done = !!formData[field]?.trim();
+                    return (
+                      <div key={field}>
+                        <label className="flex items-center gap-2 text-sm font-medium text-[#334155] mb-2">
+                          {formatFieldName(field)}{" "}
+                          <span className="text-[#C93B3B]">*</span>
+                          {done && (
+                            <CheckCircle2
+                              size={14}
+                              className="text-[#12A06E]"
+                            />
+                          )}
+                        </label>
+                        {fieldType === "date" ? (
+                          <input
+                            type="date"
+                            required
+                            value={formData[field] || ""}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                [field]: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            style={{ fontFamily: MONO }}
+                          />
+                        ) : fieldType === "text" ? (
+                          <input
+                            type="text"
+                            required
+                            value={formData[field] || ""}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                [field]: e.target.value,
+                              })
+                            }
+                            placeholder={placeholder}
+                            className={inputClass}
+                          />
+                        ) : (
+                          <textarea
+                            rows={4}
+                            required
+                            value={formData[field] || ""}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                [field]: e.target.value,
+                              })
+                            }
+                            placeholder={placeholder}
+                            className={`${inputClass} resize-none leading-relaxed`}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {error && (
+                  <div className="mt-6 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
+                    <AlertCircle
+                      size={16}
+                      className="text-[#C93B3B] flex-shrink-0 mt-0.5"
+                    />
+                    <p className="text-sm text-[#9F2D2D]">{error}</p>
+                  </div>
+                )}
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-3 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white font-semibold rounded-lg transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="mt-8 w-full py-4 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-base font-semibold rounded-xl transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{" "}
-                      Submitting...
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending to your attorney...
                     </>
                   ) : (
                     <>
-                      Submit Information <ArrowRight size={16} />
+                      Send to my attorney <ArrowRight size={17} />
                     </>
                   )}
                 </button>
-              </form>
-            </div>
+                <p className="mt-4 text-center text-xs text-[#94A3B8]">
+                  Submitting shares this information only with the attorney who
+                  sent you this link.
+                </p>
+              </section>
+            </form>
           </div>
 
-          <div className="lg:w-80 flex-shrink-0">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-24">
-              <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="text-base font-bold text-gray-900">
-                  Completion Progress
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Updates as you fill the form
+          <aside className="hidden lg:block w-80 flex-shrink-0 sticky top-24">
+            <div className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm overflow-hidden">
+              <div className="px-6 py-5 border-b border-[#EEF0F6]">
+                <Eyebrow>Progress</Eyebrow>
+                <p className="text-xs text-[#94A3B8] mt-1.5">
+                  Updates as you type
                 </p>
               </div>
-              <div className="p-5">
+              <div className="p-6">
                 <ScoreRing score={score} />
-                <div className="mt-5">
-                  <div className="flex justify-between text-sm mb-1.5">
-                    <span className="font-semibold text-gray-600">
-                      Required fields
-                    </span>
-                    <span className={`font-bold ${scoreTextColor}`}>
-                      {completedRequired}/{totalRequired}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${scoreBarColor}`}
-                      style={{
-                        width: `${(completedRequired / totalRequired) * 100}%`,
-                      }}
-                    />
-                  </div>
+                <div className="mt-6 flex justify-between items-baseline text-sm mb-2">
+                  <span className="font-medium text-[#475569]">
+                    Required fields
+                  </span>
+                  <span
+                    style={{ fontFamily: MONO, color: scoreColor(score) }}
+                    className="font-medium"
+                  >
+                    {completedRequired}/{totalRequired}
+                  </span>
                 </div>
-                <div className="mt-4 space-y-2.5">
+                <div className="h-1.5 bg-[#EEF0F6] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${(completedRequired / totalRequired) * 100}%`,
+                      background: scoreColor(score),
+                    }}
+                  />
+                </div>
+                <div className="mt-5 space-y-2.5">
                   <div className="flex items-center gap-2.5">
                     {clientInfo.first_name && clientInfo.last_name ? (
-                      <CheckCircle2 size={14} className="text-emerald-500" />
+                      <CheckCircle2 size={14} className="text-[#12A06E]" />
                     ) : (
-                      <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                      <div className="w-3.5 h-3.5 rounded-full border border-[#D7DCE7]" />
                     )}
-                    <span className="text-xs text-gray-700">
-                      Your Full Name
+                    <span className="text-xs text-[#475569]">
+                      Your full name
                     </span>
                   </div>
                   {currentConfig.required.map((field: string) => (
                     <div key={field} className="flex items-center gap-2.5">
                       {formData[field]?.trim() ? (
-                        <CheckCircle2 size={14} className="text-emerald-500" />
+                        <CheckCircle2 size={14} className="text-[#12A06E]" />
                       ) : (
-                        <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                        <div className="w-3.5 h-3.5 rounded-full border border-[#D7DCE7]" />
                       )}
-                      <span className="text-xs text-gray-700">
+                      <span className="text-xs text-[#475569]">
                         {formatFieldName(field)}
                       </span>
                     </div>
                   ))}
                 </div>
                 <div
-                  className={`mt-5 px-4 py-3 rounded-xl text-center text-sm font-bold ${score >= 80 ? "bg-emerald-50 text-emerald-700" : score >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}
+                  className="mt-6 px-4 py-3 rounded-xl text-center text-sm font-semibold"
+                  style={{
+                    background:
+                      score >= 80
+                        ? "#ECFDF3"
+                        : score >= 50
+                          ? "#FFF8EB"
+                          : "#FEF2F2",
+                    color: scoreColor(score),
+                  }}
                 >
                   {score >= 80
-                    ? "✓ Great progress! Ready to submit"
+                    ? "Ready to send"
                     : score >= 50
                       ? "Almost there — keep going"
-                      : "Please fill required fields"}
+                      : "Fill in the required fields"}
                 </div>
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </main>
+
+      {/* Mobile progress bar */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-[#E8EAF1] px-5 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex justify-between items-baseline mb-1.5">
+              <span className="text-xs font-medium text-[#475569]">
+                Progress
+              </span>
+              <span
+                className="text-xs font-medium"
+                style={{ fontFamily: MONO, color: scoreColor(score) }}
+              >
+                {completedRequired}/{totalRequired} required
+              </span>
+            </div>
+            <div className="h-1.5 bg-[#EEF0F6] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${(completedRequired / totalRequired) * 100}%`,
+                  background: scoreColor(score),
+                }}
+              />
+            </div>
+          </div>
+          <span
+            className="text-xl font-medium"
+            style={{ fontFamily: MONO, color: scoreColor(score) }}
+          >
+            {score}%
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

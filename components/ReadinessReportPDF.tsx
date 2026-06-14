@@ -2,7 +2,13 @@
 
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
-// Create styles (similar to CSS but for PDF)
+// Brand: matches the app's #3B5BDB primary and score thresholds
+const BRAND = "#3B5BDB";
+
+function scoreHex(score: number) {
+  return score >= 80 ? "#12A06E" : score >= 50 ? "#C97A0A" : "#C93B3B";
+}
+
 const styles = StyleSheet.create({
   page: {
     padding: 40,
@@ -10,7 +16,7 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
   },
   header: {
-    backgroundColor: "#2563eb",
+    backgroundColor: BRAND,
     padding: 20,
     marginBottom: 20,
     borderRadius: 8,
@@ -18,23 +24,23 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: "#ffffff",
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: "Helvetica-Bold",
     marginBottom: 8,
   },
   headerSubtitle: {
-    color: "#bfdbfe",
+    color: "#DDE4FF",
     fontSize: 12,
   },
   section: {
     marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontFamily: "Helvetica-Bold",
     color: "#1e293b",
     marginBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: "#2563eb",
+    borderBottomColor: BRAND,
     paddingBottom: 4,
   },
   infoGrid: {
@@ -51,12 +57,12 @@ const styles = StyleSheet.create({
   infoValue: {
     flex: 1,
     fontSize: 12,
-    fontWeight: "bold",
+    fontFamily: "Helvetica-Bold",
     color: "#0f172a",
     marginBottom: 4,
   },
   scoreContainer: {
-    backgroundColor: "#eff6ff",
+    backgroundColor: "#F4F6FB",
     padding: 20,
     borderRadius: 8,
     alignItems: "center",
@@ -64,8 +70,7 @@ const styles = StyleSheet.create({
   },
   scoreNumber: {
     fontSize: 48,
-    fontWeight: "bold",
-    color: "#2563eb",
+    fontFamily: "Helvetica-Bold",
   },
   scoreLabel: {
     fontSize: 12,
@@ -73,86 +78,64 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusBadge: {
-    marginTop: 8,
+    marginTop: 10,
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 20,
   },
-  statusReady: {
-    backgroundColor: "#dcfce7",
-  },
-  statusPartial: {
-    backgroundColor: "#fef9c3",
-  },
-  statusNotReady: {
-    backgroundColor: "#fee2e2",
-  },
   statusText: {
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
     textAlign: "center",
-  },
-  statusTextReady: {
-    color: "#166534",
-  },
-  statusTextPartial: {
-    color: "#854d0e",
-  },
-  statusTextNotReady: {
-    color: "#991b1b",
   },
   progressBar: {
     backgroundColor: "#e2e8f0",
     height: 8,
     borderRadius: 4,
     marginTop: 12,
+    width: "100%",
   },
   progressFill: {
-    backgroundColor: "#2563eb",
     height: 8,
     borderRadius: 4,
   },
   completedItem: {
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#F7F8FB",
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#12A06E",
   },
   completedTitle: {
     fontSize: 11,
-    fontWeight: "bold",
-    color: "#166534",
+    fontFamily: "Helvetica-Bold",
+    color: "#0f172a",
     marginBottom: 4,
+    textTransform: "capitalize",
   },
   completedValue: {
     fontSize: 9,
-    color: "#14532d",
+    color: "#475569",
   },
   missingItem: {
-    backgroundColor: "#fef2f2",
+    backgroundColor: "#FFF8EB",
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#C97A0A",
   },
   missingTitle: {
     fontSize: 11,
-    fontWeight: "bold",
-    color: "#991b1b",
+    fontFamily: "Helvetica-Bold",
+    color: "#7A5008",
     marginBottom: 4,
+    textTransform: "capitalize",
   },
   missingReason: {
     fontSize: 9,
-    color: "#7f1d1d",
-  },
-  documentItem: {
-    backgroundColor: "#f8fafc",
-    padding: 8,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  documentText: {
-    fontSize: 10,
-    color: "#475569",
+    color: "#9A6B14",
   },
   footer: {
     position: "absolute",
@@ -174,31 +157,38 @@ const styles = StyleSheet.create({
 interface ReadinessReportPDFProps {
   intake: any;
   report: any;
-  documents: any[];
+  documents?: any[];
+}
+
+function formatCaseType(raw: string) {
+  const types: Record<string, string> = {
+    personal_injury: "Personal Injury",
+    family: "Family Law",
+    criminal_defense: "Criminal Defense",
+    immigration: "Immigration",
+    estate_planning: "Estate Planning",
+  };
+  return types[raw] || raw.replace(/_/g, " ");
 }
 
 export default function ReadinessReportPDF({
   intake,
   report,
-  documents,
+  documents = [],
 }: ReadinessReportPDFProps) {
-  const getStatusText = (score: number) => {
-    if (score === 100) return "READY";
-    if (score >= 50) return "PARTIALLY READY";
-    return "NOT READY";
-  };
+  const score = report.overall_score ?? 0;
+  const color = scoreHex(score);
 
-  const getStatusStyle = (score: number) => {
-    if (score === 100) return styles.statusReady;
-    if (score >= 50) return styles.statusPartial;
-    return styles.statusNotReady;
-  };
+  // ≥80 = required portion complete, matching the rest of the app
+  const statusText =
+    score >= 80
+      ? "READY FOR CONSULTATION"
+      : score >= 50
+        ? "PARTIALLY READY"
+        : "NOT READY";
 
-  const getStatusTextStyle = (score: number) => {
-    if (score === 100) return styles.statusTextReady;
-    if (score >= 50) return styles.statusTextPartial;
-    return styles.statusTextNotReady;
-  };
+  const statusBg =
+    score >= 80 ? "#DCFCE7" : score >= 50 ? "#FEF9C3" : "#FEE2E2";
 
   const currentDate = new Date().toLocaleDateString("en-US", {
     year: "numeric",
@@ -209,13 +199,14 @@ export default function ReadinessReportPDF({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Case Readiness Report</Text>
-          <Text style={styles.headerSubtitle}>Generated on {currentDate}</Text>
+          <Text style={styles.headerSubtitle}>
+            {intake.client_first_name} {intake.client_last_name} ·{" "}
+            {formatCaseType(intake.case_type)} · {currentDate}
+          </Text>
         </View>
 
-        {/* Client Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Client Information</Text>
 
@@ -229,7 +220,7 @@ export default function ReadinessReportPDF({
           <View style={styles.infoGrid}>
             <Text style={styles.infoLabel}>Case Type:</Text>
             <Text style={styles.infoValue}>
-              {intake.case_type.replace("_", " ").toUpperCase()}
+              {formatCaseType(intake.case_type)}
             </Text>
           </View>
 
@@ -255,62 +246,37 @@ export default function ReadinessReportPDF({
           </View>
         </View>
 
-        {/* Readiness Score */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Readiness Assessment</Text>
 
           <View style={styles.scoreContainer}>
-            <Text style={styles.scoreNumber}>{report.overall_score}%</Text>
+            <Text style={[styles.scoreNumber, { color }]}>{score}%</Text>
             <Text style={styles.scoreLabel}>Overall Readiness Score</Text>
 
-            <View
-              style={[styles.statusBadge, getStatusStyle(report.overall_score)]}
-            >
-              <Text
-                style={[
-                  styles.statusText,
-                  getStatusTextStyle(report.overall_score),
-                ]}
-              >
-                {getStatusText(report.overall_score)}
-              </Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+              <Text style={[styles.statusText, { color }]}>{statusText}</Text>
             </View>
 
             <View style={styles.progressBar}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${report.overall_score}%` },
+                  { width: `${score}%`, backgroundColor: color },
                 ]}
               />
             </View>
           </View>
         </View>
 
-        {/* Documents */}
-        {documents && documents.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Uploaded Documents ({documents.length})
-            </Text>
-            {documents.map((doc: any, idx: number) => (
-              <View key={idx} style={styles.documentItem}>
-                <Text style={styles.documentText}>📄 {doc.file_name}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Completed Fields */}
         {report.completed_fields && report.completed_fields.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              ✅ Information Provided ({report.completed_fields.length})
+              Information Provided ({report.completed_fields.length})
             </Text>
             {report.completed_fields.map((item: any, idx: number) => (
               <View key={idx} style={styles.completedItem}>
                 <Text style={styles.completedTitle}>
-                  {item.field.replace(/_/g, " ").toUpperCase()}
+                  {item.field.replace(/_/g, " ")}
                 </Text>
                 <Text style={styles.completedValue}>
                   {typeof item.value === "string"
@@ -324,16 +290,15 @@ export default function ReadinessReportPDF({
           </View>
         )}
 
-        {/* Missing Fields */}
         {report.missing_fields && report.missing_fields.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              ❌ Missing Information ({report.missing_fields.length})
+              Missing Information ({report.missing_fields.length})
             </Text>
             {report.missing_fields.map((item: any, idx: number) => (
               <View key={idx} style={styles.missingItem}>
                 <Text style={styles.missingTitle}>
-                  {item.field.replace(/_/g, " ").toUpperCase()}
+                  {item.field.replace(/_/g, " ")}
                 </Text>
                 <Text style={styles.missingReason}>{item.reason}</Text>
               </View>
@@ -341,13 +306,12 @@ export default function ReadinessReportPDF({
           </View>
         )}
 
-        {/* Footer */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
-            IntakeReady - Professional Case Management Software
+            CaseReady — Professional Legal Intake Software
           </Text>
           <Text style={styles.footerText}>
-            This report is for internal use only | Generated by IntakeReady
+            Confidential — for attorney use only
           </Text>
         </View>
       </Page>

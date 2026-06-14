@@ -166,7 +166,7 @@ export async function PUT(
     // Confirm the token maps to a real intake before writing anything
     const { data: existing, error: lookupError } = await supabase
       .from("intakes")
-      .select("id, case_type")
+      .select("id, case_type, user_id")
       .eq("share_token", token)
       .maybeSingle();
 
@@ -217,6 +217,31 @@ export async function PUT(
         { error: "Failed to save your information" },
         { status: 500 },
       );
+    }
+
+    // Notify the attorney who owns this intake. Never fail the
+    // client's submission over a notification problem — log only.
+    if (existing.user_id) {
+      const clientName =
+        [body.client_first_name, body.client_last_name]
+          .filter(Boolean)
+          .join(" ") || "A client";
+
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert({
+          user_id: existing.user_id,
+          intake_id: existing.id,
+          message:
+            status === "ready_for_review"
+              ? `${clientName} completed their intake — readiness report is ready`
+              : `${clientName} submitted intake information`,
+          type: status === "ready_for_review" ? "ready" : "info",
+        });
+
+      if (notifError) {
+        console.error("Public intake PUT — notification error:", notifError);
+      }
     }
 
     return NextResponse.json({
