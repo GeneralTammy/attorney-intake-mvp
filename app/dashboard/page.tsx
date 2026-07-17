@@ -573,17 +573,22 @@ export default function DashboardPage() {
                 <button
                   onClick={handleGenerateShareLink}
                   disabled={generatingLink}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E0E4EE] text-[#334155] text-sm font-medium rounded-lg hover:bg-[#F7F8FB] transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 border border-[#E0E4EE] text-[#334155] text-sm font-medium rounded-lg hover:bg-[#F7F8FB] transition disabled:opacity-50"
+                  aria-label="Share Link"
                 >
                   <Link2 size={14} />
-                  {generatingLink ? "Creating..." : "Share Link"}
+                  <span className="hidden sm:inline">
+                    {generatingLink ? "Creating..." : "Share Link"}
+                  </span>
                 </button>
                 <NotificationBell />
                 <Link
                   href="/dashboard/intakes/new"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3B5BDB] hover:bg-[#2F4AC2] text-white text-sm font-medium rounded-lg transition shadow-sm"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 border border-[#E0E4EE] text-[#334155] text-sm font-medium rounded-lg hover:bg-[#F7F8FB] transition disabled:opacity-50"
+                  aria-label="New Intake"
                 >
-                  <PlusCircle size={14} /> New Intake
+                  <PlusCircle size={14} />
+                  <span className="hidden sm:inline">New Intake</span>
                 </Link>
               </div>
             </div>
