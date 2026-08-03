@@ -306,7 +306,7 @@ export default function PublicIntakePage() {
     setError("");
 
     try {
-      const response = await fetch(`/api/public/intake/${token}`, {
+      const response = await fetch(`/api/public/intake/${token}/submit`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
