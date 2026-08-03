@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import FileUploadField from "@/components/FileUploadField";
 import {
   Briefcase,
   Mail,
@@ -624,6 +625,8 @@ export default function PublicIntakePage() {
                     );
                   })}
                 </div>
+
+                <FileUploadField token={token} />
 
                 {error && (
                   <div className="mt-6 flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">

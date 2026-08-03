@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import IntakeFilesSection from "@/components/IntakeFilesSection";
+
 import {
   ArrowLeft,
   FileText,
@@ -518,6 +520,7 @@ export default function IntakeDetailPage() {
                       </div>
                     )}
                   </section>
+                  <IntakeFilesSection intakeId={intakeId} />
                 </div>
 
                 <aside className="bg-white rounded-2xl border border-[#E8EAF1] shadow-sm overflow-hidden lg:sticky lg:top-24">
